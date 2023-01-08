@@ -8,7 +8,11 @@ pub struct Ranking<'a> {
 }
 
 impl Ranking<'_> {
-    pub fn new(proxy: &dyn TruthEstimator, requested_ranking: u32, weight: f64) -> Ranking {
+    pub fn new(
+        proxy: &dyn TruthEstimator,
+        requested_ranking: u32,
+        weight: f64,
+    ) -> Ranking {
         if requested_ranking == 0 {
             panic!("requested_ranking must be greater than 0");
         }

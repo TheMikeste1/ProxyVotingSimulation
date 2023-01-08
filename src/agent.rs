@@ -14,7 +14,10 @@ impl<'pd, PD> Agent<'pd, PD>
 where
     PD: Distribution<f64>,
 {
-    pub fn new(extent: f64, preference_distribution: PreferenceDistribution<'pd, PD>) -> Self {
+    pub fn new(
+        extent: f64,
+        preference_distribution: PreferenceDistribution<'pd, PD>,
+    ) -> Self {
         Self {
             extent,
             preference_distribution,
