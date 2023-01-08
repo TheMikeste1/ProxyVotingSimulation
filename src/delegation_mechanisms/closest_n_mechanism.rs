@@ -11,8 +11,12 @@ impl ClosestNMechanism {
     }
 }
 
-impl DelegationMechanism for ClosestNMechanism {
-    fn delegate(&self, proxies: &[&dyn TruthEstimator]) -> Rankings {
+impl<'a> DelegationMechanism<'a> for ClosestNMechanism {
+    fn delegate(
+        &self,
+        agent: &dyn TruthEstimator,
+        proxies: &[&'a dyn TruthEstimator],
+    ) -> Rankings<'a> {
         todo!("Implement ClosestNMechanism::delegate")
     }
 }

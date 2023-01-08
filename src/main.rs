@@ -7,17 +7,19 @@ mod rankings;
 mod truth_estimator;
 
 pub mod delegation_mechanisms;
+pub mod utils;
 pub mod voting_mechanisms;
 
 pub mod prelude {
-    pub use crate::agent::*;
-    pub use crate::preference_distribution::*;
-    pub use crate::ranking::*;
-    pub use crate::rankings::*;
-    pub use crate::truth_estimator::*;
+    pub use super::agent::*;
+    pub use super::preference_distribution::*;
+    pub use super::ranking::*;
+    pub use super::rankings::*;
+    pub use super::truth_estimator::*;
 
-    pub use crate::delegation_mechanisms;
-    pub use crate::voting_mechanisms;
+    pub use super::delegation_mechanisms;
+    pub use super::utils;
+    pub use super::voting_mechanisms;
 }
 
 pub use prelude::*;
