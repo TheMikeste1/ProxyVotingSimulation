@@ -1,0 +1,17 @@
+#!/bin/bash
+function format() {
+  exe=$(which rustfmt)
+  if [ -n "$exe" ]; then
+    # Field separator to the new line
+    IFS=$'\n'
+    for file in $(git diff --cached --name-only --diff-filter=ACM | grep -E "\.(rs)$"); do
+      cargo fmt -- "$file"
+      git add "$file"
+    done
+  else
+    echo "rustfmt was not found"
+  fi
+}
+format
+
+cargo clippy
