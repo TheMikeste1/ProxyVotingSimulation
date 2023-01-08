@@ -6,7 +6,21 @@ pub struct Rankings<'a> {
 }
 
 impl<'a> Rankings<'a> {
-    pub fn new(rankings: Vec<Ranking<'a>>) -> Self {
+    pub fn new(rankings: &[Ranking<'a>]) -> Self {
+        let rankings = rankings.to_vec();
+        Self { rankings }
+    }
+
+    pub fn new_from_weights(
+        proxies: &[&'a dyn TruthEstimator],
+        weights: &[f64],
+    ) -> Self {
+        let rankings = proxies
+            .iter()
+            .enumerate()
+            .zip(weights)
+            .map(|((rank, &p), w)| Ranking::new(p, rank as u32, *w))
+            .collect();
         Self { rankings }
     }
 

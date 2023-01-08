@@ -1,5 +1,6 @@
 use crate::TruthEstimator;
 
+#[derive(Clone)]
 pub struct Ranking<'a> {
     pub proxy: Box<&'a dyn TruthEstimator>,
     /// The ranking requested by the proxy
@@ -13,10 +14,6 @@ impl Ranking<'_> {
         requested_ranking: u32,
         weight: f64,
     ) -> Ranking {
-        if requested_ranking == 0 {
-            panic!("requested_ranking must be greater than 0");
-        }
-
         Ranking {
             proxy: Box::new(proxy),
             requested_ranking,
