@@ -6,6 +6,7 @@ where
     PD: Distribution<f64>,
 {
     extent: f64,
+    id: u32,
     preference_distribution: PreferenceDistribution<'pd, PD>,
     last_estimate: Option<Truth>,
 }
@@ -15,11 +16,13 @@ where
     PD: Distribution<f64>,
 {
     pub fn new(
+        id: u32,
         extent: f64,
         preference_distribution: PreferenceDistribution<'pd, PD>,
     ) -> Self {
         Self {
             extent,
+            id,
             preference_distribution,
             last_estimate: None,
         }
@@ -31,7 +34,7 @@ where
     PD: Distribution<f64>,
 {
     fn get_id(&self) -> u32 {
-        todo!()
+        self.id
     }
 }
 
