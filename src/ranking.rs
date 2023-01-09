@@ -1,21 +1,26 @@
 use crate::TruthEstimator;
+use ordered_float::OrderedFloat;
+use std::rc::Rc;
+
+pub type Weight = OrderedFloat<f64>;
 
 #[derive(Clone)]
-pub struct Ranking<'a> {
-    pub proxy: Box<&'a dyn TruthEstimator>,
+pub struct Ranking {
+    pub proxy: Rc<dyn TruthEstimator>,
     /// The ranking requested by the proxy
     pub requested_ranking: u32,
-    pub weight: f64,
+    pub weight: Weight,
 }
 
-impl Ranking<'_> {
+impl Ranking {
     pub fn new(
-        proxy: &dyn TruthEstimator,
+        proxy: Rc<dyn TruthEstimator>,
         requested_ranking: u32,
-        weight: f64,
-    ) -> Ranking {
-        Ranking {
-            proxy: Box::new(proxy),
+        weight: Weight,
+    ) -> Self {
+        let proxy = Rc::clone(&proxy);
+        Self {
+            proxy,
             requested_ranking,
             weight,
         }

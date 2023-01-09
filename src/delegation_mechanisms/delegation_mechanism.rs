@@ -1,9 +1,10 @@
 use crate::prelude::{Rankings, TruthEstimator};
+use std::rc::Rc;
 
-pub trait DelegationMechanism<'a> {
+pub trait DelegationMechanism {
     fn delegate(
         &self,
         agent: &dyn TruthEstimator,
-        proxies: &[&'a dyn TruthEstimator],
-    ) -> Rankings<'a>;
+        proxies: &[Rc<dyn TruthEstimator>],
+    ) -> Rankings;
 }

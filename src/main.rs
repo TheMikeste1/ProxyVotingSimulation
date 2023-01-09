@@ -1,6 +1,7 @@
 use rand_distr::Beta;
 
 mod agent;
+pub mod has_id;
 mod preference_distribution;
 mod ranking;
 mod rankings;
@@ -12,12 +13,13 @@ pub mod voting_mechanisms;
 
 pub mod prelude {
     pub use super::agent::*;
+    pub use super::has_id::*;
     pub use super::preference_distribution::*;
     pub use super::ranking::*;
     pub use super::rankings::*;
-    pub use super::truth_estimator::*;
 
     pub use super::delegation_mechanisms;
+    pub use super::truth_estimator::*;
     pub use super::utils;
     pub use super::voting_mechanisms;
 }

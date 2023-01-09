@@ -1,10 +1,10 @@
-use crate::TruthEstimator;
+use crate::{Truth, TruthEstimator, Weight};
 use std::ops::Div;
 
 pub fn average_truth_estimators(
-    truth_estimators: &[&dyn TruthEstimator],
-    weights: &[f64],
-) -> f64 {
+    truth_estimators: &[&impl TruthEstimator],
+    weights: &[Weight],
+) -> Truth {
     truth_estimators
         .iter()
         .zip(weights)
@@ -13,8 +13,8 @@ pub fn average_truth_estimators(
                 .expect("All truth estimators should have an estimate!")
                 * w
         })
-        .sum::<f64>()
-        .div(weights.iter().sum::<f64>())
+        .sum::<Truth>()
+        .div(weights.iter().sum::<Truth>())
 }
 
 #[macro_export]
@@ -22,7 +22,7 @@ macro_rules! average_truth_estimators {
     ($truth_estimators:expr) => {
         average_truth_estimators!(
             $truth_estimators,
-            vec![1f64; $truth_estimators.len()].as_slice()
+            vec![$crate::Weight::from(1f64); $truth_estimators.len()].as_slice()
         )
     };
 

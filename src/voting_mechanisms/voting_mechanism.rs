@@ -1,10 +1,11 @@
 use crate::prelude::{Rankings, TruthEstimator};
+use crate::Truth;
 
 pub trait VotingMechanism {
     fn solve(
         &mut self,
-        proxies: &[&dyn TruthEstimator],
-        delegators: &[&dyn TruthEstimator],
+        proxies: &[&impl TruthEstimator],
+        delegators: &[&impl TruthEstimator],
         rankings: &[Rankings],
-    ) -> f64;
+    ) -> Truth;
 }

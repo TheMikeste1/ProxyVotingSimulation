@@ -26,7 +26,16 @@ where
     }
 }
 
-impl<'pd, PD> TruthEstimator for Agent<'pd, PD>
+impl<PD> HasID for Agent<'_, PD>
+where
+    PD: Distribution<f64>,
+{
+    fn get_id(&self) -> u32 {
+        todo!()
+    }
+}
+
+impl<PD> TruthEstimator for Agent<'_, PD>
 where
     PD: Distribution<f64>,
 {

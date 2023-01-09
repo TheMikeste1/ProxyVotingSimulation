@@ -1,25 +1,26 @@
-use crate::{Ranking, TruthEstimator};
+use crate::{Ranking, TruthEstimator, Weight};
+use std::rc::Rc;
 
 #[derive(Default)]
-pub struct Rankings<'a> {
-    rankings: Vec<Ranking<'a>>,
+pub struct Rankings {
+    rankings: Vec<Ranking>,
 }
 
-impl<'a> Rankings<'a> {
-    pub fn new(rankings: &[Ranking<'a>]) -> Self {
+impl Rankings {
+    pub fn new(rankings: &[Ranking]) -> Rankings {
         let rankings = rankings.to_vec();
         Self { rankings }
     }
 
     pub fn new_from_weights(
-        proxies: &[&'a dyn TruthEstimator],
-        weights: &[f64],
-    ) -> Self {
+        proxies: &[Rc<dyn TruthEstimator>],
+        weights: &[Weight],
+    ) -> Rankings {
         let rankings = proxies
             .iter()
             .enumerate()
             .zip(weights)
-            .map(|((rank, &p), w)| Ranking::new(p, rank as u32, *w))
+            .map(|((rank, p), w)| Ranking::new(Rc::clone(p), rank as u32, *w))
             .collect();
         Self { rankings }
     }
@@ -28,7 +29,7 @@ impl<'a> Rankings<'a> {
         self.rankings.is_empty()
     }
 
-    pub fn get(&self, index: usize) -> Option<&Ranking<'_>> {
+    pub fn get(&self, index: usize) -> Option<&Ranking> {
         self.rankings.get(index)
     }
 
@@ -38,9 +39,9 @@ impl<'a> Rankings<'a> {
 
     pub fn push(
         &mut self,
-        proxy: &'a dyn TruthEstimator,
+        proxy: Rc<dyn TruthEstimator>,
         requested_ranking: u32,
-        weight: f64,
+        weight: Weight,
     ) {
         // Check if the ranking already exists
         if self
@@ -65,5 +66,9 @@ impl<'a> Rankings<'a> {
         // Insert the ranking
         self.rankings
             .insert(pos, Ranking::new(proxy, requested_ranking, weight));
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &Ranking> {
+        self.rankings.iter()
     }
 }

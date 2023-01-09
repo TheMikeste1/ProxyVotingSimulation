@@ -1,5 +1,6 @@
 use crate::delegation_mechanisms::{ClosestNMechanism, DelegationMechanism};
 use crate::{Rankings, TruthEstimator};
+use std::rc::Rc;
 
 #[derive(Default)]
 pub struct ClosestMechanism(ClosestNMechanism);
@@ -10,12 +11,12 @@ impl ClosestMechanism {
     }
 }
 
-impl<'a> DelegationMechanism<'a> for ClosestMechanism {
+impl DelegationMechanism for ClosestMechanism {
     fn delegate(
         &self,
         agent: &dyn TruthEstimator,
-        proxies: &[&'a dyn TruthEstimator],
-    ) -> Rankings<'a> {
+        proxies: &[Rc<dyn TruthEstimator>],
+    ) -> Rankings {
         self.0.delegate(agent, proxies)
     }
 }

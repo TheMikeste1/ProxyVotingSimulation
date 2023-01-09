@@ -1,6 +1,7 @@
 use crate::delegation_mechanisms::DelegationMechanism;
 use crate::utils::sort_by_distance;
-use crate::{Rankings, TruthEstimator};
+use crate::{Rankings, TruthEstimator, Weight};
+use std::rc::Rc;
 
 pub struct ClosestNMechanism {
     n: u32,
@@ -15,24 +16,27 @@ impl ClosestNMechanism {
     }
 }
 
-impl<'a> DelegationMechanism<'a> for ClosestNMechanism {
+impl DelegationMechanism for ClosestNMechanism {
     fn delegate(
         &self,
         agent: &dyn TruthEstimator,
-        proxies: &[&'a dyn TruthEstimator],
-    ) -> Rankings<'a> {
+        proxies: &[Rc<dyn TruthEstimator>],
+    ) -> Rankings {
         // Assign the closest proxy all the weight, order the rest by distance
         let sorted_proxies = sort_by_distance(agent, proxies);
 
-        let mut weights = vec![0.0; sorted_proxies.len()];
-        let weight = 1.0 / self.n as f64;
+        let mut weights = vec![Weight::from(0.0); sorted_proxies.len()];
+        let weight: Weight = Weight::from(1.0 / self.n as f64);
         weights
             .iter_mut()
             .take(self.n as usize)
             .for_each(|w| *w = weight);
 
         Rankings::new_from_weights(
-            &sorted_proxies.iter().map(|(p, _)| *p).collect::<Vec<_>>(),
+            &sorted_proxies
+                .iter()
+                .map(|(p, _)| Rc::clone(p))
+                .collect::<Vec<_>>(),
             &weights,
         )
     }
