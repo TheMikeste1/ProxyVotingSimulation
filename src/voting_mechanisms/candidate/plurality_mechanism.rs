@@ -2,22 +2,26 @@ use crate::prelude::{Rankings, TruthEstimator};
 use crate::utils::sum_rankings_weights;
 use crate::voting_mechanisms::VotingMechanism;
 use crate::Truth;
+use std::borrow::Borrow;
+use std::rc::Rc;
 
 pub struct PluralityMechanism;
 
 impl VotingMechanism for PluralityMechanism {
     fn solve(
         &mut self,
-        _proxies: &[&impl TruthEstimator],
-        _delegators: &[&impl TruthEstimator],
+        _proxies: &[Rc<dyn TruthEstimator>],
+        _delegators: &[Rc<dyn TruthEstimator>],
         rankings: &[Rankings],
     ) -> Truth {
         let summed_rankings = sum_rankings_weights(rankings);
         summed_rankings
             .iter()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .max_by(|a, b| a.weight.partial_cmp(b.weight.borrow()).unwrap())
             .unwrap()
-            .0
+            .proxy
+            .upgrade()
+            .unwrap()
             .get_last_estimate()
             .unwrap()
     }

@@ -1,8 +1,9 @@
 use crate::{Truth, TruthEstimator, Weight};
 use std::ops::Div;
+use std::rc::Rc;
 
 pub fn average_truth_estimators(
-    truth_estimators: &[&impl TruthEstimator],
+    truth_estimators: &[Rc<dyn TruthEstimator>],
     weights: &[Weight],
 ) -> Truth {
     truth_estimators
