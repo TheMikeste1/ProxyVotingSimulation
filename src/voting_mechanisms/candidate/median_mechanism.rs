@@ -3,7 +3,6 @@ use crate::utils::{sum_rankings_weights, ProxyWeightSum};
 use crate::voting_mechanisms::VotingMechanism;
 use crate::{Truth, Weight};
 use ordered_float::OrderedFloat;
-use std::cmp::Ordering;
 use std::rc::Rc;
 
 pub struct MedianMechanism;
@@ -21,7 +20,7 @@ impl VotingMechanism for MedianMechanism {
         let median_weight = total_weight / 2.0;
         let mut current_weight: Weight = OrderedFloat(0.0);
         // Find the median value
-        for (i, ProxyWeightSum { proxy, weight }) in proxy_weights.iter().enumerate() {
+        for ProxyWeightSum { proxy, weight } in proxy_weights {
             current_weight += weight;
             if current_weight >= median_weight {
                 return proxy.get_last_estimate().unwrap();

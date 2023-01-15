@@ -18,6 +18,9 @@ impl Ranking {
         requested_ranking: u32,
         weight: Weight,
     ) -> Self {
+        // Weight must be positive or zero
+        assert!(weight >= OrderedFloat(0.0));
+
         let proxy = Rc::clone(&proxy);
         Self {
             proxy,
