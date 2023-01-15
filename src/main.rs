@@ -1,66 +1,105 @@
-use rand::distributions::Distribution;
 use rand::rngs::ThreadRng;
-use rand::Rng;
+use rand::{thread_rng, Rng, RngCore};
 use rand_distr::Beta;
+use std::task::ready;
 
 mod agent;
-pub mod has_id;
+mod degenerified_distribution;
+mod has_id;
 mod preference_distribution;
 mod ranking;
 mod rankings;
 mod truth_estimator;
 
+pub mod agent_utils;
 pub mod delegation_mechanisms;
 pub mod utils;
 pub mod voting_mechanisms;
 
 pub mod prelude {
     pub use super::agent::*;
+    pub use super::degenerified_distribution::*;
     pub use super::has_id::*;
     pub use super::preference_distribution::*;
     pub use super::ranking::*;
     pub use super::rankings::*;
-
-    pub use super::delegation_mechanisms;
     pub use super::truth_estimator::*;
+
+    pub use super::agent_utils;
+    pub use super::delegation_mechanisms;
     pub use super::utils;
     pub use super::voting_mechanisms;
 }
 
 pub use prelude::*;
 
+use crate::delegation_mechanisms::*;
+use crate::utils::NamedTuple;
+use crate::voting_mechanisms::VotingMechanism;
 use preference_distribution::PreferenceDistribution;
 use voting_mechanisms::average;
 use voting_mechanisms::candidate;
 
-fn main() {
-    let mut distribution: PreferenceDistribution<ThreadRng, _> =
-        PreferenceDistribution::from(Beta::new(2.0, 5.0).unwrap());
-    let _mech = average::MeanMechanism;
-    let _mech2 = candidate::MedianMechanism;
-    println!("{}", distribution.generate_value(-1.0, 1.0));
+type DistributionFactory =
+    dyn Fn(usize) -> Box<dyn DegenerifiedDistribution<f64, R = ThreadRng>>;
+
+macro_rules! boxed_distribution_factory {
+    ($distribution:expr) => {
+        Box::new(|_| Box::new($distribution))
+    };
 }
 
-fn generate_agents<R, D>(
-    n: usize,
-    distribution: &dyn Fn() -> D,
-    rng: &dyn Fn() -> R,
-    extent: f64,
-) -> Vec<Agent<R, D>>
-where
-    R: Rng,
-    D: Distribution<f64>,
-{
-    let mut agents = Vec::new();
+fn main() {
+    let distribution_factories: Vec<NamedTuple<Box<DistributionFactory>>> = vec![
+        NamedTuple::new(
+            "Uniform".into(),
+            boxed_distribution_factory!(rand_distr::Uniform::new(0.0, 1.0)),
+        ),
+        NamedTuple::new(
+            "Normal".into(),
+            boxed_distribution_factory!(
+                rand_distr::Normal::new(0.0, 1.0 / 3.0).unwrap()
+            ),
+        ),
+        NamedTuple::new(
+            "Beta(0.3, 0.3)".into(),
+            boxed_distribution_factory!(Beta::new(0.3, 0.3).unwrap()),
+        ),
+        NamedTuple::new(
+            "Beta(50, 50)".into(),
+            boxed_distribution_factory!(Beta::new(50.0, 50.0).unwrap()),
+        ),
+        NamedTuple::new(
+            "Beta(4, 1)".into(),
+            boxed_distribution_factory!(Beta::new(4.0, 1.0).unwrap()),
+        ),
+    ];
+    let rng_factory = Box::new(|_: usize| thread_rng());
 
-    for i in 0..n {
-        let agent = Agent::new(
-            i as u32,
-            extent,
-            PreferenceDistribution::new(distribution(), rng()),
-        );
-        agents.push(agent);
-    }
+    let delegation_mechanisms: Vec<NamedTuple<&dyn DelegationMechanism>> = vec![
+        NamedTuple::new("Closest".into(), &ClosestMechanism::new()),
+        NamedTuple::new("Closest 2".into(), &ClosestNMechanism::new(2)),
+        NamedTuple::new("Closest 3".into(), &ClosestNMechanism::new(3)),
+        NamedTuple::new("Closest 5".into(), &ClosestNMechanism::new(5)),
+        NamedTuple::new("Closest 10".into(), &ClosestNMechanism::new(10)),
+    ];
 
-    agents
+    let voting_mechanisms: Vec<NamedTuple<&dyn VotingMechanism>> = vec![
+        // Baseline
+        NamedTuple::new(
+            "Weightless Average All".into(),
+            &average::WeightlessAverageAllMechanism,
+        ),
+        NamedTuple::new(
+            "Weightless Average Proxies".into(),
+            &average::WeightlessAverageProxiesMechanism,
+        ),
+        // Average
+        NamedTuple::new("Mean".into(), &average::MeanMechanism),
+        // Candidate
+        NamedTuple::new("Median".into(), &candidate::MedianMechanism),
+        NamedTuple::new("Plurality".into(), &candidate::PluralityMechanism),
+    ];
+
+    // distribution_factories
 }
