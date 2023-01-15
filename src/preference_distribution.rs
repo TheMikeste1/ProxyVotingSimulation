@@ -1,3 +1,4 @@
+use crate::Truth;
 use rand::RngCore;
 use rand_distr::Distribution;
 
@@ -18,9 +19,9 @@ where
         Self { rng, distribution }
     }
 
-    pub fn generate_value(&mut self, min: f64, max: f64) -> f64 {
+    pub fn generate_value(&mut self, min: f64, max: f64) -> Truth {
         let value = self.distribution.sample(&mut *self.rng);
-        min + (max - min) * value
+        Truth::from(min + (max - min) * value)
     }
 }
 
