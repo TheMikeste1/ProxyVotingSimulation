@@ -1,35 +1,37 @@
 use crate::Truth;
-use rand::RngCore;
+use rand::Rng;
 use rand_distr::Distribution;
 
-pub struct PreferenceDistribution<'a, D>
+pub struct PreferenceDistribution<R, D>
 where
+    R: Rng,
     D: Distribution<f64>,
 {
-    rng: Box<dyn RngCore + 'a>,
+    rng: R,
     distribution: D,
 }
 
-impl<'a, D> PreferenceDistribution<'a, D>
+impl<R, D> PreferenceDistribution<R, D>
 where
+    R: Rng,
     D: Distribution<f64>,
 {
-    pub fn new(distribution: D, rng: impl RngCore + 'a) -> Self {
-        let rng = Box::new(rng);
+    pub fn new(distribution: D, rng: R) -> Self {
         Self { rng, distribution }
     }
 
     pub fn generate_value(&mut self, min: f64, max: f64) -> Truth {
-        let value = self.distribution.sample(&mut *self.rng);
+        let value = self.distribution.sample(&mut self.rng);
         Truth::from(min + (max - min) * value)
     }
 }
 
-impl<D> From<D> for PreferenceDistribution<'_, D>
+impl<R, D> From<D> for PreferenceDistribution<R, D>
 where
+    R: Rng + Default,
     D: Distribution<f64>,
 {
     fn from(distribution: D) -> Self {
-        Self::new(distribution, rand::thread_rng())
+        Self::new(distribution, R::default())
     }
 }

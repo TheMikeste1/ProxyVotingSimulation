@@ -1,24 +1,27 @@
 use crate::*;
-use rand::prelude::Distribution;
+use rand::distributions::Distribution;
+use rand::Rng;
 
-pub struct Agent<'pd, PD>
+pub struct Agent<R, D>
 where
-    PD: Distribution<f64>,
+    R: Rng,
+    D: Distribution<f64>,
 {
     extent: f64,
     id: u32,
-    preference_distribution: PreferenceDistribution<'pd, PD>,
+    preference_distribution: PreferenceDistribution<R, D>,
     last_estimate: Option<Truth>,
 }
 
-impl<'pd, PD> Agent<'pd, PD>
+impl<R, D> Agent<R, D>
 where
-    PD: Distribution<f64>,
+    R: Rng,
+    D: Distribution<f64>,
 {
     pub fn new(
         id: u32,
         extent: f64,
-        preference_distribution: PreferenceDistribution<'pd, PD>,
+        preference_distribution: PreferenceDistribution<R, D>,
     ) -> Self {
         Self {
             extent,
@@ -29,18 +32,20 @@ where
     }
 }
 
-impl<PD> HasID for Agent<'_, PD>
+impl<R, D> HasID for Agent<R, D>
 where
-    PD: Distribution<f64>,
+    R: Rng,
+    D: Distribution<f64>,
 {
     fn get_id(&self) -> u32 {
         self.id
     }
 }
 
-impl<PD> TruthEstimator for Agent<'_, PD>
+impl<R, D> TruthEstimator for Agent<R, D>
 where
-    PD: Distribution<f64>,
+    R: Rng,
+    D: Distribution<f64>,
 {
     fn get_last_estimate(&self) -> Option<Truth> {
         self.last_estimate
