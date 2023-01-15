@@ -1,10 +1,10 @@
 use crate::{Rankings, TruthEstimator, Weight};
 use std::borrow::Borrow;
 use std::collections::HashMap;
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 pub struct ProxyWeightSum {
-    pub proxy: Weak<dyn TruthEstimator>,
+    pub proxy: Rc<dyn TruthEstimator>,
     pub weight: Weight,
 }
 
@@ -27,7 +27,7 @@ pub fn sum_rankings_weights(rankings: &[Rankings]) -> Vec<ProxyWeightSum> {
     let mut summed_rankings: Vec<ProxyWeightSum> = summed_rankings_map
         .into_iter()
         .map(|(_, (p, w))| ProxyWeightSum {
-            proxy: Rc::downgrade(&p),
+            proxy: p,
             weight: w,
         })
         .collect();

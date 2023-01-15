@@ -16,7 +16,7 @@ impl VotingMechanism for MeanMechanism {
         let proxy_weights = sum_rankings_weights(rankings);
         let proxies = proxy_weights
             .iter()
-            .map(|pw| pw.proxy.upgrade().expect("Proxy should exist!"))
+            .map(|pw| Rc::clone(&pw.proxy))
             .collect::<Vec<_>>();
         let weights = proxy_weights.iter().map(|pw| pw.weight).collect::<Vec<_>>();
         average_truth_estimators(proxies.as_slice(), weights.as_slice())

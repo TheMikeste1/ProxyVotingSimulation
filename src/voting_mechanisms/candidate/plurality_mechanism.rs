@@ -20,8 +20,6 @@ impl VotingMechanism for PluralityMechanism {
             .max_by(|a, b| a.weight.partial_cmp(b.weight.borrow()).unwrap())
             .unwrap()
             .proxy
-            .upgrade()
-            .unwrap()
             .get_last_estimate()
             .unwrap()
     }
