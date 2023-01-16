@@ -9,6 +9,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 mod agent;
+mod data_row;
 mod has_id;
 mod ranking;
 mod rankings;
@@ -22,6 +23,7 @@ pub mod voting_mechanisms;
 
 pub mod prelude {
     pub use super::agent::*;
+    pub use super::data_row::*;
     pub use super::has_id::*;
     pub use super::ranking::*;
     pub use super::rankings::*;
@@ -38,7 +40,7 @@ pub use prelude::*;
 
 use crate::agent_utils::{generate_agents, generate_estimates};
 use crate::delegation_mechanisms::*;
-use crate::utils::NamedTuple;
+use crate::utils::{save_to_file, sum_rankings_weights, NamedTuple};
 use crate::voting_mechanisms::VotingMechanism;
 use voting_mechanisms::average;
 use voting_mechanisms::candidate;
@@ -94,7 +96,9 @@ fn main() {
         NamedTuple::new("Plurality".into(), Box::new(candidate::PluralityMechanism)),
     ];
 
-    perform_experiments(distributions, delegation_mechanisms, voting_mechanisms);
+    let data =
+        perform_experiments(distributions, delegation_mechanisms, voting_mechanisms);
+    save_to_file(data);
 }
 
 fn perform_experiments(
@@ -103,7 +107,7 @@ fn perform_experiments(
     >,
     delegation_mechanisms: Vec<NamedTuple<Box<dyn DelegationMechanism + Sync>>>,
     voting_mechanisms: Vec<NamedTuple<Box<dyn VotingMechanism + Sync>>>,
-) {
+) -> Vec<DataRow> {
     let rng_factory = |_: usize| StdRng::from_entropy();
     let num_threads = 8;
     let num_agents = 435; // 435 is the number of members of the US House of Representatives
@@ -124,6 +128,7 @@ fn perform_experiments(
         .println("Starting experiments...")
         .expect("Failed to print to progress bar");
 
+    let mut all_rows = Vec::new();
     thread::scope(|s| {
         let mut handles = Vec::new();
         for chunk in &chunks {
@@ -137,29 +142,35 @@ fn perform_experiments(
                 .progress_chars("##-")
             );
             progress_bar.tick();
-            let thread = s.spawn(move |_| {
+            let thread = s.spawn(move |_| -> Vec<DataRow> {
+                let mut data = Vec::with_capacity(chunk.len() * (num_agents - 2));
                 // Perform the experiments for each combination
                 // Initialize new agents for each thread
                 let mut agents = generate_agents(num_agents, &rng_factory, 1.0);
                 for ((distribution, delegation_mechanism), voting_mechanism) in &chunk {
-                    perform_experiment(
+                    let rows = perform_experiment(
                         &mut agents,
                         distribution,
                         delegation_mechanism,
                         voting_mechanism,
                         &progress_bar
                     );
+                    data.extend(rows);
                     progress_bar.inc(1);
                 }
                 progress_bar.finish();
+                data
             });
             handles.push(thread);
         }
         for thread in handles {
-            thread.join().unwrap();
+            let rows = thread.join().unwrap();
+            all_rows.extend(rows);
         }
     })
     .expect("Thread panicked");
+
+    all_rows
 }
 
 fn perform_experiment(
@@ -168,9 +179,12 @@ fn perform_experiment(
     delegation_mechanism: &NamedTuple<Box<dyn DelegationMechanism + Sync>>,
     voting_mechanism: &NamedTuple<Box<dyn VotingMechanism + Sync>>,
     progress_bar: &ProgressBar,
-) {
+) -> Vec<DataRow> {
     generate_estimates(agents, distribution.value.as_ref());
 
+    // Make a vector of length agents.len() - 2.
+    // We subtract 2 since we will never have 0 proxies nor all proxies
+    let mut data = Vec::with_capacity(agents.len() - 2);
     // Start with n - 1 proxies, go down to 1 proxy
     for num_proxies in (1..agents.len()).rev() {
         let proxies = &agents[0..num_proxies];
@@ -183,9 +197,32 @@ fn perform_experiment(
             .collect::<Vec<_>>();
 
         // Perform voting
-        let _out = voting_mechanism
+        let out = voting_mechanism
             .value
             .solve(proxies, inactive_agents, &rankings);
+
+        let proxy_weights = sum_rankings_weights(&rankings)
+            .iter()
+            .map(|w| w.weight)
+            .collect::<Vec<_>>();
+        let min_proxy_weight = proxy_weights.iter().min().unwrap();
+        let max_proxy_weight = proxy_weights.iter().max().unwrap();
+        let avg_proxy_weight =
+            proxy_weights.iter().sum::<Weight>() / proxy_weights.len() as f64;
+
+        let row = DataRow {
+            distribution: distribution.name.clone(),
+            voting_mechanism: voting_mechanism.name.clone(),
+            number_of_proxies: num_proxies as u32,
+            number_of_delegates: (agents.len() - num_proxies) as u32,
+            estimate: *out,
+            min_proxy_weight: **min_proxy_weight,
+            max_proxy_weight: **max_proxy_weight,
+            average_proxy_weight: *avg_proxy_weight,
+        };
+        data.push(row);
+
         progress_bar.tick();
     }
+    data
 }
