@@ -15,7 +15,7 @@ pub fn save_to_file(data: Vec<DataRow>) {
         ),
         Field::new(
             "voting_mechanism",
-            DataType::Dictionary(Box::from(DataType::Utf8), Box::from(DataType::Utf8)),
+            DataType::Dictionary(Box::from(DataType::Int8), Box::from(DataType::Utf8)),
             false,
         ),
         Field::new("number_of_proxies", DataType::UInt32, false),
@@ -25,21 +25,6 @@ pub fn save_to_file(data: Vec<DataRow>) {
         Field::new("max_proxy_weight", DataType::Float64, false),
         Field::new("average_proxy_weight", DataType::Float64, false),
     ]));
-
-    if !Path::new("data/").exists() {
-        std::fs::create_dir("data/").expect("Could not create directory");
-    }
-
-    let filepath = format!(
-        "data/{}.arrow",
-        chrono::Local::now().format("%Y-%m-%d_%H-%M-%S")
-    );
-    println!("Saving data to {}", filepath);
-    let mut writer = arrow::ipc::writer::FileWriter::try_new(
-        std::fs::File::create(filepath).expect("Could not create file"),
-        &schema,
-    )
-    .expect("Failed to create file writer");
 
     // Create the dictionary arrays
     let mut distribution_array_builder: StringDictionaryBuilder<
@@ -93,6 +78,20 @@ pub fn save_to_file(data: Vec<DataRow>) {
     )
     .expect("Error creating record batch");
 
+    if !Path::new("data/").exists() {
+        std::fs::create_dir("data/").expect("Could not create directory");
+    }
+
+    let filepath = format!(
+        "data/{}.arrow",
+        chrono::Local::now().format("%Y-%m-%d_%H-%M-%S")
+    );
+    println!("Saving data to {}", filepath);
+    let mut writer = arrow::ipc::writer::FileWriter::try_new(
+        std::fs::File::create(filepath).expect("Could not create file"),
+        &schema,
+    )
+    .expect("Failed to create file writer");
     writer.write(&batch).unwrap();
 
     writer.finish().expect("Error finishing file writer");
