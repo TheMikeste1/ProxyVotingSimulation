@@ -1,5 +1,5 @@
 use crate::DataRow;
-use arrow::array::{Float64Array, StringDictionaryBuilder, UInt32Array};
+use arrow::array::{Float64Array, StringBuilder, StringDictionaryBuilder, UInt32Array};
 use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
 use std::path::Path;
@@ -15,7 +15,8 @@ pub fn save_to_file(data: Vec<DataRow>) {
         ),
         Field::new(
             "voting_mechanism",
-            DataType::Dictionary(Box::from(DataType::Int8), Box::from(DataType::Utf8)),
+            // I would prefer this be a dictionary as well, but cannot seem to get it to work
+            DataType::Utf8,
             false,
         ),
         Field::new("number_of_proxies", DataType::UInt32, false),
@@ -30,9 +31,7 @@ pub fn save_to_file(data: Vec<DataRow>) {
     let mut distribution_array_builder: StringDictionaryBuilder<
         arrow::datatypes::Int8Type,
     > = StringDictionaryBuilder::new();
-    let mut voting_mechanism_array_builder: StringDictionaryBuilder<
-        arrow::datatypes::Int8Type,
-    > = StringDictionaryBuilder::new();
+    let mut voting_mechanism_array_builder = StringBuilder::new();
     let mut number_of_proxies_array_builder = UInt32Array::builder(data.len());
     let mut number_of_delegates_array_builder = UInt32Array::builder(data.len());
     let mut estimate_array_builder = Float64Array::builder(data.len());
@@ -43,9 +42,8 @@ pub fn save_to_file(data: Vec<DataRow>) {
         distribution_array_builder
             .append(row.distribution)
             .expect("Failed to append distribution");
-        voting_mechanism_array_builder
-            .append(row.voting_mechanism)
-            .expect("Failed to append voting mechanism");
+
+        voting_mechanism_array_builder.append_value(row.voting_mechanism);
         number_of_proxies_array_builder.append_value(row.number_of_proxies);
         number_of_delegates_array_builder.append_value(row.number_of_delegates);
         estimate_array_builder.append_value(row.estimate);
@@ -78,6 +76,7 @@ pub fn save_to_file(data: Vec<DataRow>) {
     )
     .expect("Error creating record batch");
 
+    // Write the file
     if !Path::new("data/").exists() {
         std::fs::create_dir("data/").expect("Could not create directory");
     }
@@ -92,7 +91,7 @@ pub fn save_to_file(data: Vec<DataRow>) {
         &schema,
     )
     .expect("Failed to create file writer");
-    writer.write(&batch).unwrap();
+    writer.write(&batch).expect("Failed to write batch");
 
     writer.finish().expect("Error finishing file writer");
 }
