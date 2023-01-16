@@ -10,7 +10,7 @@ pub fn save_to_file(data: Vec<DataRow>) {
     let schema = Arc::new(Schema::new(vec![
         Field::new(
             "distribution",
-            DataType::Dictionary(Box::from(DataType::Utf8), Box::from(DataType::Utf8)),
+            DataType::Dictionary(Box::from(DataType::Int8), Box::from(DataType::Utf8)),
             false,
         ),
         Field::new(
