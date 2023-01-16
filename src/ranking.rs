@@ -1,12 +1,12 @@
 use crate::TruthEstimator;
 use ordered_float::OrderedFloat;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 pub type Weight = OrderedFloat<f64>;
 
 #[derive(Clone)]
 pub struct Ranking {
-    pub proxy: Rc<dyn TruthEstimator>,
+    pub proxy: Weak<dyn TruthEstimator>,
     /// The ranking requested by the proxy
     pub requested_ranking: u32,
     pub weight: Weight,
@@ -21,7 +21,7 @@ impl Ranking {
         // Weight must be positive or zero
         assert!(weight >= OrderedFloat(0.0));
 
-        let proxy = Rc::clone(&proxy);
+        let proxy = Rc::downgrade(&proxy);
         Self {
             proxy,
             requested_ranking,

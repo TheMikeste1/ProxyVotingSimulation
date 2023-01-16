@@ -7,7 +7,7 @@ pub struct Rankings {
 }
 
 impl Rankings {
-    pub fn new(rankings: &[Ranking]) -> Rankings {
+    pub fn new(rankings: &[Ranking]) -> Self {
         let rankings = rankings.to_vec();
         Self { rankings }
     }
@@ -15,7 +15,7 @@ impl Rankings {
     pub fn new_from_weights(
         proxies: &[Rc<dyn TruthEstimator>],
         weights: &[Weight],
-    ) -> Rankings {
+    ) -> Self {
         let rankings = proxies
             .iter()
             .enumerate()
@@ -39,7 +39,7 @@ impl Rankings {
 
     pub fn push(
         &mut self,
-        proxy: Rc<dyn TruthEstimator>,
+        proxy: Box<dyn TruthEstimator>,
         requested_ranking: u32,
         weight: Weight,
     ) {
@@ -65,7 +65,7 @@ impl Rankings {
 
         // Insert the ranking
         self.rankings
-            .insert(pos, Ranking::new(proxy, requested_ranking, weight));
+            .insert(pos, Ranking::new(proxy.into(), requested_ranking, weight));
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &Ranking> {

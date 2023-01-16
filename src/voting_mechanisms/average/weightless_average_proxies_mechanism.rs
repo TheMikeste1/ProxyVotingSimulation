@@ -7,7 +7,7 @@ pub struct WeightlessAverageProxiesMechanism;
 
 impl VotingMechanism for WeightlessAverageProxiesMechanism {
     fn solve(
-        &mut self,
+        &self,
         proxies: &[Rc<dyn TruthEstimator>],
         _delegators: &[Rc<dyn TruthEstimator>],
         _rankings: &[Rankings],

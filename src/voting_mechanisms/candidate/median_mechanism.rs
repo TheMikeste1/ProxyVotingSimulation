@@ -9,7 +9,7 @@ pub struct MedianMechanism;
 
 impl VotingMechanism for MedianMechanism {
     fn solve(
-        &mut self,
+        &self,
         _proxies: &[Rc<dyn TruthEstimator>],
         _delegators: &[Rc<dyn TruthEstimator>],
         rankings: &[Rankings],
@@ -23,7 +23,11 @@ impl VotingMechanism for MedianMechanism {
         for ProxyWeightSum { proxy, weight } in proxy_weights {
             current_weight += weight;
             if current_weight >= median_weight {
-                return proxy.get_last_estimate().unwrap();
+                return proxy
+                    .upgrade()
+                    .expect("Proxy should exist!")
+                    .get_last_estimate()
+                    .unwrap();
             }
         }
         unreachable!(

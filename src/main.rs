@@ -1,5 +1,10 @@
+extern crate crossbeam;
+
+use crossbeam::thread;
+use itertools::Itertools;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
+use std::rc::Rc;
 
 mod agent;
 mod has_id;
@@ -29,6 +34,7 @@ pub mod prelude {
 
 pub use prelude::*;
 
+use crate::agent_utils::{generate_agents, generate_estimates};
 use crate::delegation_mechanisms::*;
 use crate::utils::NamedTuple;
 use crate::voting_mechanisms::VotingMechanism;
@@ -36,8 +42,8 @@ use voting_mechanisms::average;
 use voting_mechanisms::candidate;
 
 fn main() {
-    let _distributions: Vec<
-        NamedTuple<Box<dyn RngLockedDistribution<f64, R = StdRng>>>,
+    let distributions: Vec<
+        NamedTuple<Box<dyn RngLockedDistribution<f64, R = StdRng> + Sync>>,
     > = vec![
         NamedTuple::new(
             "Uniform".into(),
@@ -60,32 +66,107 @@ fn main() {
             Box::new(rand_distr::Beta::new(4.0, 1.0).unwrap()),
         ),
     ];
-    let _rng_factory = Box::new(|_: usize| StdRng::from_entropy());
 
-    let _delegation_mechanisms: Vec<NamedTuple<&dyn DelegationMechanism>> = vec![
-        NamedTuple::new("Closest".into(), &ClosestMechanism::new()),
-        NamedTuple::new("Closest 2".into(), &ClosestNMechanism::new(2)),
-        NamedTuple::new("Closest 3".into(), &ClosestNMechanism::new(3)),
-        NamedTuple::new("Closest 5".into(), &ClosestNMechanism::new(5)),
-        NamedTuple::new("Closest 10".into(), &ClosestNMechanism::new(10)),
+    let delegation_mechanisms: Vec<NamedTuple<Box<dyn DelegationMechanism + Sync>>> = vec![
+        NamedTuple::new("Closest".into(), Box::new(ClosestMechanism::new())),
+        NamedTuple::new("Closest 2".into(), Box::new(ClosestNMechanism::new(2))),
+        NamedTuple::new("Closest 3".into(), Box::new(ClosestNMechanism::new(3))),
+        NamedTuple::new("Closest 5".into(), Box::new(ClosestNMechanism::new(5))),
+        NamedTuple::new("Closest 10".into(), Box::new(ClosestNMechanism::new(10))),
     ];
 
-    let _voting_mechanisms: Vec<NamedTuple<&dyn VotingMechanism>> = vec![
+    let voting_mechanisms: Vec<NamedTuple<Box<dyn VotingMechanism + Sync>>> = vec![
         // Baseline
         NamedTuple::new(
             "Weightless Average All".into(),
-            &average::WeightlessAverageAllMechanism,
+            Box::new(average::WeightlessAverageAllMechanism),
         ),
         NamedTuple::new(
             "Weightless Average Proxies".into(),
-            &average::WeightlessAverageProxiesMechanism,
+            Box::new(average::WeightlessAverageProxiesMechanism),
         ),
         // Average
-        NamedTuple::new("Mean".into(), &average::MeanMechanism),
+        NamedTuple::new("Mean".into(), Box::new(average::MeanMechanism)),
         // Candidate
-        NamedTuple::new("Median".into(), &candidate::MedianMechanism),
-        NamedTuple::new("Plurality".into(), &candidate::PluralityMechanism),
+        NamedTuple::new("Median".into(), Box::new(candidate::MedianMechanism)),
+        NamedTuple::new("Plurality".into(), Box::new(candidate::PluralityMechanism)),
     ];
 
-    // distribution_factories
+    perform_experiments(distributions, delegation_mechanisms, voting_mechanisms);
+}
+
+fn perform_experiments(
+    distributions: Vec<
+        NamedTuple<Box<dyn RngLockedDistribution<f64, R = StdRng> + Sync>>,
+    >,
+    delegation_mechanisms: Vec<NamedTuple<Box<dyn DelegationMechanism + Sync>>>,
+    voting_mechanisms: Vec<NamedTuple<Box<dyn VotingMechanism + Sync>>>,
+) {
+    let rng_factory = |_: usize| StdRng::from_entropy();
+    let num_threads = 8;
+    let num_agents = 435; // 435 is the number of members of the US House of Representatives
+
+    let total_combinations =
+        distributions.len() * delegation_mechanisms.len() * voting_mechanisms.len();
+    let items_per_thread =
+        (total_combinations as f64 / num_threads as f64).ceil() as usize;
+
+    let chunks = distributions
+        .iter()
+        .cartesian_product(delegation_mechanisms.iter())
+        .cartesian_product(voting_mechanisms.iter())
+        .chunks(items_per_thread);
+
+    thread::scope(|s| {
+        let mut handles = Vec::new();
+        for chunk in &chunks {
+            let chunk = chunk.collect::<Vec<_>>();
+
+            // Initialize new agents for each thread
+
+            let thread = s.spawn(move |_| {
+                // Perform the experiments for each combination
+                let mut agents = generate_agents(num_agents, &rng_factory, 1.0);
+                for ((distribution, delegation_mechanism), voting_mechanism) in &chunk {
+                    perform_experiment(
+                        &mut agents,
+                        distribution,
+                        delegation_mechanism,
+                        voting_mechanism,
+                    );
+                }
+            });
+            handles.push(thread);
+        }
+        for thread in handles {
+            thread.join().unwrap();
+        }
+    })
+    .expect("Thread panicked");
+}
+
+fn perform_experiment(
+    agents: &mut Vec<Rc<dyn TruthEstimator>>,
+    distribution: &NamedTuple<Box<dyn RngLockedDistribution<f64, R = StdRng> + Sync>>,
+    delegation_mechanism: &NamedTuple<Box<dyn DelegationMechanism + Sync>>,
+    voting_mechanism: &NamedTuple<Box<dyn VotingMechanism + Sync>>,
+) {
+    generate_estimates(agents, distribution.value.as_ref());
+
+    // Start with n - 1 proxies, go down to 1 proxy
+    for num_proxies in (1..agents.len()).rev() {
+        let proxies = &agents[0..num_proxies];
+        let inactive_agents = &agents[num_proxies..];
+
+        // Perform delegations
+        let rankings = inactive_agents
+            .iter()
+            .map(|a| delegation_mechanism.value.delegate(a, proxies))
+            .collect::<Vec<_>>();
+
+        // Perform voting
+        let _out = voting_mechanism
+            .value
+            .solve(proxies, inactive_agents, &rankings);
+    }
 }

@@ -20,7 +20,7 @@ impl ClosestNMechanism {
 impl DelegationMechanism for ClosestNMechanism {
     fn delegate(
         &self,
-        agent: &dyn TruthEstimator,
+        agent: &Rc<dyn TruthEstimator>,
         proxies: &[Rc<dyn TruthEstimator>],
     ) -> Rankings {
         // Assign the closest proxy all the weight, order the rest by distance
@@ -34,13 +34,11 @@ impl DelegationMechanism for ClosestNMechanism {
             .take(to_take as usize)
             .for_each(|w| *w = weight);
 
-        Rankings::new_from_weights(
-            &sorted_proxies
-                .iter()
-                .map(|(p, _)| Rc::clone(p))
-                .collect::<Vec<_>>(),
-            &weights,
-        )
+        let sorted_proxies = sorted_proxies
+            .iter()
+            .map(|(p, _)| Rc::clone(p))
+            .collect::<Vec<_>>();
+        Rankings::new_from_weights(sorted_proxies.as_slice(), &weights)
     }
 }
 

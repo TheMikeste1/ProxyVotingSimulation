@@ -14,7 +14,7 @@ impl ClosestMechanism {
 impl DelegationMechanism for ClosestMechanism {
     fn delegate(
         &self,
-        agent: &dyn TruthEstimator,
+        agent: &Rc<dyn TruthEstimator>,
         proxies: &[Rc<dyn TruthEstimator>],
     ) -> Rankings {
         self.0.delegate(agent, proxies)

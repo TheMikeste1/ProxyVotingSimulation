@@ -7,7 +7,7 @@ pub struct InstantRunoffMechanism;
 
 impl VotingMechanism for InstantRunoffMechanism {
     fn solve(
-        &mut self,
+        &self,
         _proxies: &[Rc<dyn TruthEstimator>],
         _delegators: &[Rc<dyn TruthEstimator>],
         _rankings: &[Rankings],

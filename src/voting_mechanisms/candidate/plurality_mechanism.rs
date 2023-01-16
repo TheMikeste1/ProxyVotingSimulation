@@ -9,7 +9,7 @@ pub struct PluralityMechanism;
 
 impl VotingMechanism for PluralityMechanism {
     fn solve(
-        &mut self,
+        &self,
         _proxies: &[Rc<dyn TruthEstimator>],
         _delegators: &[Rc<dyn TruthEstimator>],
         rankings: &[Rankings],
@@ -20,6 +20,8 @@ impl VotingMechanism for PluralityMechanism {
             .max_by(|a, b| a.weight.partial_cmp(b.weight.borrow()).unwrap())
             .unwrap()
             .proxy
+            .upgrade()
+            .expect("Proxy should exist!")
             .get_last_estimate()
             .unwrap()
     }

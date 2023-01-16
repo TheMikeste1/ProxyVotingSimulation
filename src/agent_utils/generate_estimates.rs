@@ -1,14 +1,13 @@
-use crate::{Agent, RngLockedDistribution, TruthEstimator};
+use crate::{RngLockedDistribution, TruthEstimator};
 use rand::rngs::StdRng;
-use rand::Rng;
+use std::rc::Rc;
 
-pub fn generate_estimates<R, D>(
-    agents: &mut Vec<Agent>,
+pub fn generate_estimates(
+    agents: &mut [Rc<dyn TruthEstimator>],
     distribution: &dyn RngLockedDistribution<f64, R = StdRng>,
-) where
-    R: Rng,
-{
+) {
     for agent in agents {
+        let agent = Rc::get_mut(agent).unwrap();
         agent.estimate(distribution);
     }
 }

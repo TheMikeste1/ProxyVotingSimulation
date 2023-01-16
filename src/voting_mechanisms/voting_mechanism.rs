@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 pub trait VotingMechanism {
     fn solve(
-        &mut self,
+        &self,
         proxies: &[Rc<dyn TruthEstimator>],
         delegators: &[Rc<dyn TruthEstimator>],
         rankings: &[Rankings],

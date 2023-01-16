@@ -7,7 +7,7 @@ pub struct RankedChoiceMechanism;
 
 impl VotingMechanism for RankedChoiceMechanism {
     fn solve(
-        &mut self,
+        &self,
         _proxies: &[Rc<dyn TruthEstimator>],
         _delegators: &[Rc<dyn TruthEstimator>],
         _rankings: &[Rankings],
