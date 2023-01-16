@@ -1,10 +1,12 @@
 extern crate crossbeam;
 
 use crossbeam::thread;
+use indicatif::{MultiProgress, ProgressBar};
 use itertools::Itertools;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use std::rc::Rc;
+use std::sync::Arc;
 
 mod agent;
 mod has_id;
@@ -117,15 +119,27 @@ fn perform_experiments(
         .cartesian_product(voting_mechanisms.iter())
         .chunks(items_per_thread);
 
+    let multi_progress = Arc::new(MultiProgress::new());
+    multi_progress
+        .println("Starting experiments...")
+        .expect("Failed to print to progress bar");
+
     thread::scope(|s| {
         let mut handles = Vec::new();
         for chunk in &chunks {
             let chunk = chunk.collect::<Vec<_>>();
 
-            // Initialize new agents for each thread
-
+            let progress_bar = multi_progress.add(ProgressBar::new(chunk.len() as u64));
+            progress_bar.set_style(
+                indicatif::ProgressStyle::default_bar()
+                .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len} ({eta})")
+                .unwrap()
+                .progress_chars("##-")
+            );
+            progress_bar.tick();
             let thread = s.spawn(move |_| {
                 // Perform the experiments for each combination
+                // Initialize new agents for each thread
                 let mut agents = generate_agents(num_agents, &rng_factory, 1.0);
                 for ((distribution, delegation_mechanism), voting_mechanism) in &chunk {
                     perform_experiment(
@@ -133,8 +147,11 @@ fn perform_experiments(
                         distribution,
                         delegation_mechanism,
                         voting_mechanism,
+                        &progress_bar
                     );
+                    progress_bar.inc(1);
                 }
+                progress_bar.finish();
             });
             handles.push(thread);
         }
@@ -150,6 +167,7 @@ fn perform_experiment(
     distribution: &NamedTuple<Box<dyn RngLockedDistribution<f64, R = StdRng> + Sync>>,
     delegation_mechanism: &NamedTuple<Box<dyn DelegationMechanism + Sync>>,
     voting_mechanism: &NamedTuple<Box<dyn VotingMechanism + Sync>>,
+    progress_bar: &ProgressBar,
 ) {
     generate_estimates(agents, distribution.value.as_ref());
 
@@ -168,5 +186,6 @@ fn perform_experiment(
         let _out = voting_mechanism
             .value
             .solve(proxies, inactive_agents, &rankings);
+        progress_bar.tick();
     }
 }
