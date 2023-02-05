@@ -92,7 +92,7 @@ pub fn save_to_file(data: Vec<DataRow>) {
         "data/{}.arrow",
         chrono::Local::now().format("%Y-%m-%d_%H-%M-%S")
     );
-    println!("Saving data to {}", filepath);
+    println!("Saving data to {filepath}");
     let mut writer = arrow::ipc::writer::FileWriter::try_new(
         std::fs::File::create(filepath).expect("Could not create file"),
         &schema,
