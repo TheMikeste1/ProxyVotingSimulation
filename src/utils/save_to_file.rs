@@ -6,6 +6,8 @@ use std::path::Path;
 use std::sync::Arc;
 
 pub fn save_to_file(data: Vec<DataRow>) {
+    use arrow::datatypes;
+
     // Save all the data to an Apache IPC file
     let schema = Arc::new(Schema::new(vec![
         Field::new_dict(
@@ -31,12 +33,10 @@ pub fn save_to_file(data: Vec<DataRow>) {
     ]));
 
     // Create the dictionary arrays
-    let mut distribution_array_builder: StringDictionaryBuilder<
-        arrow::datatypes::Int8Type,
-    > = StringDictionaryBuilder::new();
-    let mut voting_mechanism_array_builder: StringDictionaryBuilder<
-        arrow::datatypes::Int8Type,
-    > = StringDictionaryBuilder::new();
+    let mut distribution_array_builder =
+        StringDictionaryBuilder::<datatypes::Int8Type>::new();
+    let mut voting_mechanism_array_builder =
+        StringDictionaryBuilder::<datatypes::Int8Type>::new();
     let mut number_of_proxies_array_builder = UInt32Array::builder(data.len());
     let mut number_of_delegates_array_builder = UInt32Array::builder(data.len());
     let mut estimate_array_builder = Float64Array::builder(data.len());
