@@ -1,5 +1,5 @@
 use crate::DataRow;
-use arrow::array::{Float64Array, StringBuilder, StringDictionaryBuilder, UInt32Array};
+use arrow::array::{Float64Array, StringDictionaryBuilder, UInt32Array};
 use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
 use std::path::Path;
@@ -8,16 +8,19 @@ use std::sync::Arc;
 pub fn save_to_file(data: Vec<DataRow>) {
     // Save all the data to an Apache IPC file
     let schema = Arc::new(Schema::new(vec![
-        Field::new(
+        Field::new_dict(
             "distribution",
             DataType::Dictionary(Box::from(DataType::Int8), Box::from(DataType::Utf8)),
             false,
+            0,
+            true,
         ),
-        Field::new(
+        Field::new_dict(
             "voting_mechanism",
-            // I would prefer this be a dictionary as well, but cannot seem to get it to work
-            DataType::Utf8,
+            DataType::Dictionary(Box::from(DataType::Int8), Box::from(DataType::Utf8)),
             false,
+            1,
+            true,
         ),
         Field::new("number_of_proxies", DataType::UInt32, false),
         Field::new("number_of_delegates", DataType::UInt32, false),
@@ -31,7 +34,9 @@ pub fn save_to_file(data: Vec<DataRow>) {
     let mut distribution_array_builder: StringDictionaryBuilder<
         arrow::datatypes::Int8Type,
     > = StringDictionaryBuilder::new();
-    let mut voting_mechanism_array_builder = StringBuilder::new();
+    let mut voting_mechanism_array_builder: StringDictionaryBuilder<
+        arrow::datatypes::Int8Type,
+    > = StringDictionaryBuilder::new();
     let mut number_of_proxies_array_builder = UInt32Array::builder(data.len());
     let mut number_of_delegates_array_builder = UInt32Array::builder(data.len());
     let mut estimate_array_builder = Float64Array::builder(data.len());
@@ -42,8 +47,10 @@ pub fn save_to_file(data: Vec<DataRow>) {
         distribution_array_builder
             .append(row.distribution)
             .expect("Failed to append distribution");
+        voting_mechanism_array_builder
+            .append(row.voting_mechanism)
+            .expect("Failed to append voting mechanism");
 
-        voting_mechanism_array_builder.append_value(row.voting_mechanism);
         number_of_proxies_array_builder.append_value(row.number_of_proxies);
         number_of_delegates_array_builder.append_value(row.number_of_delegates);
         estimate_array_builder.append_value(row.estimate);
