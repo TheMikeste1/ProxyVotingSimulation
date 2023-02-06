@@ -1,6 +1,9 @@
+use crate::coordination_mechanisms::CoordinationMechanism;
 use crate::{Agent, Delegation};
 
-pub trait MeanCoordinationMechanism {
+pub struct MeanCoordinationMechanism;
+
+impl CoordinationMechanism for MeanCoordinationMechanism {
     fn coordinate(&self, delegatee: &Agent, delegations: &[Delegation]) -> f64 {
         (delegatee.get_preference()
             + delegations

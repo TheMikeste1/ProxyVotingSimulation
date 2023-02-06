@@ -1,6 +1,9 @@
+use crate::coordination_mechanisms::CoordinationMechanism;
 use crate::{Agent, Delegation};
 
-pub trait MedianCoordinationMechanism {
+pub struct MedianCoordinationMechanism;
+
+impl CoordinationMechanism for MedianCoordinationMechanism {
     fn coordinate(&self, delegatee: &Agent, delegations: &[Delegation]) -> f64 {
         let mut preferences = delegations
             .iter()
