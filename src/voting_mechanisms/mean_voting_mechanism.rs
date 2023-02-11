@@ -1,5 +1,3 @@
-use itertools::Itertools;
-
 use crate::voting_mechanisms::*;
 
 pub struct MeanVotingMechanism;
