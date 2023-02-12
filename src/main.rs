@@ -18,6 +18,7 @@ pub mod prelude {
 
 pub use prelude::*;
 
+use indicatif::ProgressBar;
 use itertools::Itertools;
 use std::collections::HashMap;
 
@@ -96,6 +97,22 @@ fn generate_rows(
         .iter()
         .cartesian_product(ids.iter())
         .map(|(d, r)| (d, r));
+
+    let total_combos = (num_agents - 2)
+        * ids.len()
+        * coordination_mechanisms.len()
+        * voting_mechanisms.len()
+        * distributions.len()
+        * 2; // x2 for shifted and unshifted
+    let progress_bar = ProgressBar::new(total_combos as u64);
+    progress_bar.println("Starting experiments...");
+    progress_bar.set_style(
+        indicatif::ProgressStyle::default_bar()
+        .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len} ({eta})")
+        .unwrap()
+        .progress_chars("##-")
+    );
+    progress_bar.tick();
 
     let mut rows = Vec::new();
     for (distribution, id) in generations {
@@ -181,6 +198,7 @@ fn generate_rows(
                         average_proxy_weight: average_weight,
                         shifted: false,
                     });
+                    progress_bar.inc(1);
                 }
             }
         }
@@ -265,6 +283,7 @@ fn generate_rows(
                         average_proxy_weight: average_weight,
                         shifted: true,
                     });
+                    progress_bar.inc(1);
                 }
             }
         }
