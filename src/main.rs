@@ -1,228 +1,325 @@
-extern crate crossbeam;
-
-use crossbeam::thread;
-use indicatif::{MultiProgress, ProgressBar};
-use itertools::Itertools;
-use rand::rngs::StdRng;
-use rand::SeedableRng;
-use std::rc::Rc;
-use std::sync::Arc;
-
 mod agent;
 mod data_row;
-mod has_id;
-mod ranking;
-mod rankings;
-mod rng_locked_distribution;
-mod truth_estimator;
+mod distribution;
 
-pub mod agent_utils;
-pub mod delegation_mechanisms;
+pub mod coordination_mechanisms;
 pub mod utils;
 pub mod voting_mechanisms;
 
 pub mod prelude {
     pub use super::agent::*;
     pub use super::data_row::*;
-    pub use super::has_id::*;
-    pub use super::ranking::*;
-    pub use super::rankings::*;
-    pub use super::rng_locked_distribution::*;
-    pub use super::truth_estimator::*;
+    pub use super::distribution::*;
 
-    pub use super::agent_utils;
-    pub use super::delegation_mechanisms;
+    pub use super::coordination_mechanisms;
     pub use super::utils;
     pub use super::voting_mechanisms;
 }
 
 pub use prelude::*;
 
-use crate::agent_utils::{generate_agents, generate_estimates};
-use crate::delegation_mechanisms::*;
-use crate::utils::{save_to_file, sum_rankings_weights, NamedTuple};
-use crate::voting_mechanisms::VotingMechanism;
-use voting_mechanisms::average;
-use voting_mechanisms::candidate;
+use indicatif::ProgressBar;
+use itertools::Itertools;
+use std::collections::HashMap;
+
+use crate::utils::save_to_file;
+use crate::vm::WeightedVote;
+use coordination_mechanisms as cm;
+use voting_mechanisms as vm;
 
 fn main() {
-    let distributions: Vec<
-        NamedTuple<Box<dyn RngLockedDistribution<f64, R = StdRng> + Sync>>,
-    > = vec![
-        NamedTuple::new(
-            "Uniform".into(),
-            Box::new(rand_distr::Uniform::new(0.0, 1.0)),
-        ),
-        NamedTuple::new(
-            "Normal".into(),
-            Box::new(rand_distr::Normal::new(0.0, 1.0 / 3.0).unwrap()),
-        ),
-        NamedTuple::new(
-            "Beta(0.3, 0.3)".into(),
-            Box::new(rand_distr::Beta::new(0.3, 0.3).unwrap()),
-        ),
-        NamedTuple::new(
-            "Beta(50, 50)".into(),
-            Box::new(rand_distr::Beta::new(50.0, 50.0).unwrap()),
-        ),
-        NamedTuple::new(
-            "Beta(4, 1)".into(),
-            Box::new(rand_distr::Beta::new(4.0, 1.0).unwrap()),
-        ),
-    ];
+    let mut coordination_mechanisms =
+        HashMap::<&str, Box<dyn cm::CoordinationMechanism>>::new();
+    coordination_mechanisms
+        .insert("Expert", Box::<cm::ExpertCoordinationMechanism>::default());
+    coordination_mechanisms
+        .insert("Mean", Box::<cm::MeanCoordinationMechanism>::default());
+    coordination_mechanisms
+        .insert("Median", Box::<cm::MedianCoordinationMechanism>::default());
+    let coordination_mechanisms = coordination_mechanisms;
 
-    let delegation_mechanisms: Vec<NamedTuple<Box<dyn DelegationMechanism + Sync>>> = vec![
-        NamedTuple::new("Closest".into(), Box::new(ClosestMechanism::new())),
-        NamedTuple::new("Closest 2".into(), Box::new(ClosestNMechanism::new(2))),
-        NamedTuple::new("Closest 3".into(), Box::new(ClosestNMechanism::new(3))),
-        NamedTuple::new("Closest 5".into(), Box::new(ClosestNMechanism::new(5))),
-        NamedTuple::new("Closest 10".into(), Box::new(ClosestNMechanism::new(10))),
-    ];
+    let mut voting_mechanisms = HashMap::<&str, Box<dyn vm::VotingMechanism>>::new();
+    voting_mechanisms.insert("Mean", Box::<vm::MeanVotingMechanism>::default());
+    voting_mechanisms.insert("Median", Box::<vm::MedianVotingMechanism>::default());
+    voting_mechanisms.insert("Midrange", Box::<vm::MidrangeVotingMechanism>::default());
+    let voting_mechanisms = voting_mechanisms;
 
-    let voting_mechanisms: Vec<NamedTuple<Box<dyn VotingMechanism + Sync>>> = vec![
-        // Baseline
-        NamedTuple::new(
-            "Weightless Average All".into(),
-            Box::new(average::WeightlessAverageAllMechanism),
+    let distributions = HashMap::<&str, Distribution>::from([
+        ("Uniform", Distribution::Uniform),
+        ("Normal", Distribution::Normal),
+        (
+            "Beta(0.3, 0.3)",
+            Distribution::Beta {
+                alpha: 0.3,
+                beta: 0.3,
+            },
         ),
-        NamedTuple::new(
-            "Weightless Average Proxies".into(),
-            Box::new(average::WeightlessAverageProxiesMechanism),
+        (
+            "Beta(50, 50)",
+            Distribution::Beta {
+                alpha: 50.0,
+                beta: 50.0,
+            },
         ),
-        // Average
-        NamedTuple::new("Mean".into(), Box::new(average::MeanMechanism)),
-        // Candidate
-        NamedTuple::new("Median".into(), Box::new(candidate::MedianMechanism)),
-        NamedTuple::new("Plurality".into(), Box::new(candidate::PluralityMechanism)),
-    ];
+        (
+            "Beta(4, 1)",
+            Distribution::Beta {
+                alpha: 4.0,
+                beta: 1.0,
+            },
+        ),
+    ]);
 
-    let data =
-        perform_experiments(distributions, delegation_mechanisms, voting_mechanisms);
-    save_to_file(data);
+    let mut rng = rand::thread_rng();
+    let num_agents = 512;
+    let rows_per_combo = 10;
+    let rows = generate_rows(
+        num_agents,
+        rows_per_combo,
+        &coordination_mechanisms,
+        &voting_mechanisms,
+        &distributions,
+        &mut rng,
+    );
+    save_to_file(rows);
 }
 
-fn perform_experiments(
-    distributions: Vec<
-        NamedTuple<Box<dyn RngLockedDistribution<f64, R = StdRng> + Sync>>,
-    >,
-    delegation_mechanisms: Vec<NamedTuple<Box<dyn DelegationMechanism + Sync>>>,
-    voting_mechanisms: Vec<NamedTuple<Box<dyn VotingMechanism + Sync>>>,
+fn generate_rows(
+    num_agents: usize,
+    rows_per_combo: usize,
+    coordination_mechanisms: &HashMap<&str, Box<dyn cm::CoordinationMechanism>>,
+    voting_mechanisms: &HashMap<&str, Box<dyn vm::VotingMechanism>>,
+    distributions: &HashMap<&str, Distribution>,
+    rng: &mut (impl rand::Rng + ?Sized),
 ) -> Vec<DataRow> {
-    let rng_factory = |_: usize| StdRng::from_entropy();
-    let num_threads = 8;
-    let num_agents = 435; // 435 is the number of members of the US House of Representatives
-
-    let total_combinations =
-        distributions.len() * delegation_mechanisms.len() * voting_mechanisms.len();
-    let items_per_thread =
-        (total_combinations as f64 / num_threads as f64).ceil() as usize;
-
-    let chunks = distributions
+    let ids = (0..rows_per_combo).collect_vec();
+    let generations = distributions
         .iter()
-        .cartesian_product(delegation_mechanisms.iter())
-        .cartesian_product(voting_mechanisms.iter())
-        .chunks(items_per_thread);
+        .cartesian_product(ids.iter())
+        .map(|(d, r)| (d, r));
 
-    let multi_progress = Arc::new(MultiProgress::new());
-    multi_progress
-        .println("Starting experiments...")
-        .expect("Failed to print to progress bar");
+    let total_combos = (num_agents - 2)
+        * ids.len()
+        * coordination_mechanisms.len()
+        * voting_mechanisms.len()
+        * distributions.len()
+        * 2; // x2 for shifted and unshifted
+    let progress_bar = ProgressBar::new(total_combos as u64);
+    progress_bar.println("Starting experiments...");
+    progress_bar.set_style(
+        indicatif::ProgressStyle::default_bar()
+        .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len} ({eta})")
+        .unwrap()
+        .progress_chars("##-")
+    );
+    progress_bar.tick();
 
-    let mut all_rows = Vec::new();
-    thread::scope(|s| {
-        let mut handles = Vec::new();
-        for chunk in &chunks {
-            let chunk = chunk.collect::<Vec<_>>();
+    let mut rows = Vec::new();
+    for (distribution, id) in generations {
+        let dist_name = distribution.0.to_string();
+        let mut agents = (0..num_agents)
+            .map(|_| Agent::new_random(1.0, 0.2, distribution.1, rng))
+            .collect_vec();
 
-            let progress_bar = multi_progress.add(ProgressBar::new(chunk.len() as u64));
-            progress_bar.set_style(
-                indicatif::ProgressStyle::default_bar()
-                .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len} ({eta})")
-                .unwrap()
-                .progress_chars("##-")
-            );
-            progress_bar.tick();
-            let thread = s.spawn(move |_| -> Vec<DataRow> {
-                let mut data = Vec::with_capacity(chunk.len() * (num_agents - 2));
-                // Perform the experiments for each combination
-                // Initialize new agents for each thread
-                let mut agents = generate_agents(num_agents, &rng_factory, 1.0);
-                for ((distribution, delegation_mechanism), voting_mechanism) in &chunk {
-                    let rows = perform_experiment(
-                        &mut agents,
-                        distribution,
-                        delegation_mechanism,
-                        voting_mechanism,
-                        &progress_bar
-                    );
-                    data.extend(rows);
+        // Preshift
+        for num_proxies in 1..num_agents {
+            let proxies = agents.iter().take(num_proxies).collect_vec();
+            let delegators = agents.iter().skip(num_proxies).collect_vec();
+            let delegation_map = select_delegates(&proxies, &delegators);
+
+            for (vm_name, vm) in voting_mechanisms {
+                let vm_name = vm_name.to_string();
+                let estimate =
+                    vote_no_delegations(agents.iter().collect_vec().as_slice(), &**vm);
+                rows.push(DataRow {
+                    generation_id: *id as u32,
+                    distribution: dist_name.clone(),
+                    coordination_mechanism: "All Agents".to_string(),
+                    voting_mechanism: vm_name.clone(),
+                    number_of_delegates: (num_agents - num_proxies) as u32,
+                    number_of_proxies: num_proxies as u32,
+                    estimate,
+                    min_proxy_weight: 1f64,
+                    max_proxy_weight: 1f64,
+                    average_proxy_weight: 1f64,
+                    shifted: false,
+                });
+
+                let estimate = vote_no_delegations(proxies.as_slice(), &**vm);
+                rows.push(DataRow {
+                    generation_id: *id as u32,
+                    distribution: dist_name.clone(),
+                    coordination_mechanism: "Active Only".to_string(),
+                    voting_mechanism: vm_name.clone(),
+                    number_of_delegates: (num_agents - num_proxies) as u32,
+                    number_of_proxies: num_proxies as u32,
+                    estimate,
+                    min_proxy_weight: 1f64,
+                    max_proxy_weight: 1f64,
+                    average_proxy_weight: 1f64,
+                    shifted: false,
+                });
+
+                for (cm_name, cm) in coordination_mechanisms {
+                    let cm_name = cm_name.to_string();
+                    let delegations = delegation_map
+                        .iter()
+                        .map(|(p, d)| {
+                            let vote = cm.coordinate(p, d.as_slice());
+                            let weight = (d.len() + 1) as f64;
+                            WeightedVote { vote, weight }
+                        })
+                        .collect_vec();
+                    let min_weight = delegations
+                        .iter()
+                        .map(|d| d.weight)
+                        .min_by(|w1, w2| w1.partial_cmp(w2).unwrap())
+                        .unwrap();
+                    let max_weight = delegations
+                        .iter()
+                        .map(|d| d.weight)
+                        .max_by(|w1, w2| w1.partial_cmp(w2).unwrap())
+                        .unwrap();
+                    let average_weight =
+                        delegations.iter().map(|d| d.weight).sum::<f64>()
+                            / num_proxies as f64;
+                    let estimate = vm.vote(delegations.as_slice());
+
+                    rows.push(DataRow {
+                        generation_id: *id as u32,
+                        distribution: dist_name.clone(),
+                        coordination_mechanism: cm_name.clone(),
+                        voting_mechanism: vm_name.clone(),
+                        number_of_delegates: (num_agents - num_proxies) as u32,
+                        number_of_proxies: num_proxies as u32,
+                        estimate,
+                        min_proxy_weight: min_weight,
+                        max_proxy_weight: max_weight,
+                        average_proxy_weight: average_weight,
+                        shifted: false,
+                    });
                     progress_bar.inc(1);
                 }
-                progress_bar.finish();
-                data
-            });
-            handles.push(thread);
+            }
         }
-        for thread in handles {
-            let rows = thread.join().unwrap();
-            all_rows.extend(rows);
-        }
-    })
-    .expect("Thread panicked");
 
-    all_rows
+        // Shift
+        agents.iter_mut().for_each(|a| a.swap_preference());
+
+        // Postshift
+        for num_proxies in 1..num_agents {
+            let proxies = agents.iter().take(num_proxies).collect_vec();
+            let delegators = agents.iter().skip(num_proxies).collect_vec();
+            let delegation_map = select_delegates(&proxies, &delegators);
+
+            for (vm_name, vm) in voting_mechanisms {
+                let vm_name = vm_name.to_string();
+                let estimate =
+                    vote_no_delegations(agents.iter().collect_vec().as_slice(), &**vm);
+                rows.push(DataRow {
+                    generation_id: *id as u32,
+                    distribution: dist_name.clone(),
+                    coordination_mechanism: "All Agents".to_string(),
+                    voting_mechanism: vm_name.clone(),
+                    number_of_delegates: (num_agents - num_proxies) as u32,
+                    number_of_proxies: num_proxies as u32,
+                    estimate,
+                    min_proxy_weight: 1f64,
+                    max_proxy_weight: 1f64,
+                    average_proxy_weight: 1f64,
+                    shifted: true,
+                });
+
+                let estimate = vote_no_delegations(proxies.as_slice(), &**vm);
+                rows.push(DataRow {
+                    generation_id: *id as u32,
+                    distribution: dist_name.clone(),
+                    coordination_mechanism: "Active Only".to_string(),
+                    voting_mechanism: vm_name.clone(),
+                    number_of_delegates: (num_agents - num_proxies) as u32,
+                    number_of_proxies: num_proxies as u32,
+                    estimate,
+                    min_proxy_weight: 1f64,
+                    max_proxy_weight: 1f64,
+                    average_proxy_weight: 1f64,
+                    shifted: true,
+                });
+
+                for (cm_name, cm) in coordination_mechanisms {
+                    let cm_name = cm_name.to_string();
+                    let delegations = delegation_map
+                        .iter()
+                        .map(|(p, d)| {
+                            let vote = cm.coordinate(p, d.as_slice());
+                            let weight = (d.len() + 1) as f64;
+                            WeightedVote { vote, weight }
+                        })
+                        .collect_vec();
+                    let min_weight = delegations
+                        .iter()
+                        .map(|d| d.weight)
+                        .min_by(|w1, w2| w1.partial_cmp(w2).unwrap())
+                        .unwrap();
+                    let max_weight = delegations
+                        .iter()
+                        .map(|d| d.weight)
+                        .max_by(|w1, w2| w1.partial_cmp(w2).unwrap())
+                        .unwrap();
+                    let average_weight =
+                        delegations.iter().map(|d| d.weight).sum::<f64>()
+                            / num_proxies as f64;
+                    let estimate = vm.vote(delegations.as_slice());
+
+                    rows.push(DataRow {
+                        generation_id: *id as u32,
+                        distribution: dist_name.clone(),
+                        coordination_mechanism: cm_name.clone(),
+                        voting_mechanism: vm_name.clone(),
+                        number_of_delegates: (num_agents - num_proxies) as u32,
+                        number_of_proxies: num_proxies as u32,
+                        estimate,
+                        min_proxy_weight: min_weight,
+                        max_proxy_weight: max_weight,
+                        average_proxy_weight: average_weight,
+                        shifted: true,
+                    });
+                    progress_bar.inc(1);
+                }
+            }
+        }
+    }
+    rows
 }
 
-fn perform_experiment(
-    agents: &mut Vec<Rc<dyn TruthEstimator>>,
-    distribution: &NamedTuple<Box<dyn RngLockedDistribution<f64, R = StdRng> + Sync>>,
-    delegation_mechanism: &NamedTuple<Box<dyn DelegationMechanism + Sync>>,
-    voting_mechanism: &NamedTuple<Box<dyn VotingMechanism + Sync>>,
-    progress_bar: &ProgressBar,
-) -> Vec<DataRow> {
-    generate_estimates(agents, distribution.value.as_ref());
-
-    // Make a vector of length agents.len() - 2.
-    // We subtract 2 since we will never have 0 proxies nor all proxies
-    let mut data = Vec::with_capacity(agents.len() - 2);
-    // Start with n - 1 proxies, go down to 1 proxy
-    for num_proxies in (1..agents.len()).rev() {
-        let proxies = &agents[0..num_proxies];
-        let inactive_agents = &agents[num_proxies..];
-
-        // Perform delegations
-        let rankings = inactive_agents
+fn select_delegates<'a>(
+    proxies: &[&'a Agent],
+    delegators: &[&'a Agent],
+) -> HashMap<&'a Agent, Vec<&'a Agent>> {
+    let mut delegation_map =
+        HashMap::<&Agent, Vec<&Agent>>::from_iter(proxies.iter().map(|&p| (p, vec![])));
+    assert_eq!(delegation_map.len(), proxies.len());
+    // Choose proxies
+    for delegator in delegators.iter() {
+        let (chosen, _) = proxies
             .iter()
-            .map(|a| delegation_mechanism.value.delegate(a, proxies))
-            .collect::<Vec<_>>();
-
-        // Perform voting
-        let out = voting_mechanism
-            .value
-            .solve(proxies, inactive_agents, &rankings);
-
-        let proxy_weights = sum_rankings_weights(&rankings)
-            .iter()
-            .map(|w| w.weight)
-            .collect::<Vec<_>>();
-        let min_proxy_weight = proxy_weights.iter().min().unwrap();
-        let max_proxy_weight = proxy_weights.iter().max().unwrap();
-        let avg_proxy_weight =
-            proxy_weights.iter().sum::<Weight>() / proxy_weights.len() as f64;
-
-        let row = DataRow {
-            distribution: distribution.name.clone(),
-            voting_mechanism: voting_mechanism.name.clone(),
-            number_of_proxies: num_proxies as u32,
-            number_of_delegates: (agents.len() - num_proxies) as u32,
-            estimate: *out,
-            min_proxy_weight: **min_proxy_weight,
-            max_proxy_weight: **max_proxy_weight,
-            average_proxy_weight: *avg_proxy_weight,
-        };
-        data.push(row);
-
-        progress_bar.tick();
+            .map(|&p| (p, delegator.get_preference() - p.get_preference()))
+            .min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap())
+            .unwrap();
+        delegation_map.get_mut(chosen).unwrap().push(delegator);
     }
-    data
+    delegation_map
+}
+
+fn vote_no_delegations(
+    agents: &[&Agent],
+    voting_mechanism: &dyn vm::VotingMechanism,
+) -> f64 {
+    let delegations = agents
+        .iter()
+        .map(|p| WeightedVote {
+            vote: p.get_preference(),
+            weight: 1f64,
+        })
+        .collect_vec();
+    voting_mechanism.vote(delegations.as_slice())
 }

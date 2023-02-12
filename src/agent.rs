@@ -1,48 +1,71 @@
-use crate::*;
+use crate::Distribution;
+use std::hash::{Hash, Hasher};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
+static mut NEXT_ID: AtomicUsize = AtomicUsize::new(0);
+
+#[derive(Debug, Default)]
 pub struct Agent {
-    extent: f64,
-    id: u32,
-    rng: StdRng,
-    last_estimate: Option<Truth>,
+    preference: f64,
+    shifted_preference: f64,
+    id: usize,
 }
 
 impl Agent {
-    pub fn new(id: u32, extent: f64, rng: StdRng) -> Self {
-        Self {
-            extent,
-            id,
-            rng,
-            last_estimate: None,
+    fn new() -> Self {
+        unsafe {
+            let this_id = NEXT_ID.fetch_add(1, Ordering::SeqCst);
+            Self {
+                preference: 0f64,
+                shifted_preference: 0f64,
+                id: this_id,
+            }
         }
     }
-}
 
-impl HasID for Agent {
-    fn get_id(&self) -> u32 {
-        self.id
-    }
-}
-
-impl TruthEstimator for Agent {
-    fn get_last_estimate(&self) -> Option<Truth> {
-        self.last_estimate
-    }
-
-    fn set_last_estimate(&mut self, estimate: Truth) {
-        self.last_estimate = Some(estimate);
+    pub fn new_random(
+        extent: f64,
+        shift_extent: f64,
+        distribution: &Distribution,
+        rng: &mut (impl rand::Rng + ?Sized),
+    ) -> Self {
+        let mut agent = Self::new();
+        agent.update_preference(extent, shift_extent, distribution, rng);
+        agent
     }
 
-    fn generate_new_estimate(
+    pub fn get_preference(&self) -> f64 {
+        self.preference
+    }
+
+    pub fn swap_preference(&mut self) {
+        std::mem::swap(&mut self.preference, &mut self.shifted_preference);
+    }
+
+    pub fn update_preference(
         &mut self,
-        distribution: &dyn RngLockedDistribution<f64, R = StdRng>,
-        truth: &Truth,
-    ) -> Truth {
-        let min = -self.extent;
-        let max = self.extent;
-        let value = distribution.sample(&mut self.rng);
-        let error = min + (max - min) * value;
+        extent: f64,
+        shift_extent: f64,
+        distribution: &Distribution,
+        rng: &mut (impl rand::Rng + ?Sized),
+    ) {
+        self.preference = distribution.sample(rng, -extent, extent);
+        let min_shift = (-extent).max(self.preference - shift_extent);
+        let max_shift = extent.min(self.preference + shift_extent);
+        self.shifted_preference = rng.gen_range(min_shift..=max_shift);
+    }
+}
 
-        truth + error
+impl Eq for Agent {}
+
+impl Hash for Agent {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write_usize(self.id)
+    }
+}
+
+impl PartialEq<Self> for Agent {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
     }
 }
