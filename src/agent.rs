@@ -52,8 +52,7 @@ impl Agent {
         self.preference = distribution.sample(rng, -extent, extent);
         let min_shift = (-extent).max(self.preference - shift_extent);
         let max_shift = extent.min(self.preference + shift_extent);
-        self.shifted_preference =
-            self.preference + rng.gen_range(min_shift..=max_shift);
+        self.shifted_preference = rng.gen_range(min_shift..=max_shift);
     }
 }
 

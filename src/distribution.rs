@@ -1,4 +1,5 @@
 use rand::Rng;
+use rand_distr::num_traits::clamp;
 use rand_distr::{Beta, Normal, Uniform};
 
 pub enum Distribution {
@@ -33,5 +34,5 @@ fn beta_in_range(
 fn normal_in_range(rng: &mut (impl Rng + ?Sized), min: f64, max: f64) -> f64 {
     let mean = (max + min) / 2f64;
     let std_dev = (max - min) / 6f64;
-    rng.sample(Normal::new(mean, std_dev).unwrap())
+    clamp(rng.sample(Normal::new(mean, std_dev).unwrap()), min, max)
 }
