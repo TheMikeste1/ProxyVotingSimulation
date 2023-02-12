@@ -130,7 +130,7 @@ fn generate_rows(
             for (vm_name, vm) in voting_mechanisms {
                 let vm_name = vm_name.to_string();
                 let estimate =
-                    vote_no_delegations(agents.iter().collect_vec().as_slice(), vm);
+                    vote_no_delegations(agents.iter().collect_vec().as_slice(), &**vm);
                 rows.push(DataRow {
                     generation_id: *id as u32,
                     distribution: dist_name.clone(),
@@ -145,7 +145,7 @@ fn generate_rows(
                     shifted: false,
                 });
 
-                let estimate = vote_no_delegations(proxies.as_slice(), vm);
+                let estimate = vote_no_delegations(proxies.as_slice(), &**vm);
                 rows.push(DataRow {
                     generation_id: *id as u32,
                     distribution: dist_name.clone(),
@@ -215,7 +215,7 @@ fn generate_rows(
             for (vm_name, vm) in voting_mechanisms {
                 let vm_name = vm_name.to_string();
                 let estimate =
-                    vote_no_delegations(agents.iter().collect_vec().as_slice(), vm);
+                    vote_no_delegations(agents.iter().collect_vec().as_slice(), &**vm);
                 rows.push(DataRow {
                     generation_id: *id as u32,
                     distribution: dist_name.clone(),
@@ -230,7 +230,7 @@ fn generate_rows(
                     shifted: true,
                 });
 
-                let estimate = vote_no_delegations(proxies.as_slice(), vm);
+                let estimate = vote_no_delegations(proxies.as_slice(), &**vm);
                 rows.push(DataRow {
                     generation_id: *id as u32,
                     distribution: dist_name.clone(),
@@ -312,7 +312,7 @@ fn select_delegates<'a>(
 
 fn vote_no_delegations(
     agents: &[&Agent],
-    voting_mechanism: &Box<dyn vm::VotingMechanism>,
+    voting_mechanism: &dyn vm::VotingMechanism,
 ) -> f64 {
     let delegations = agents
         .iter()
