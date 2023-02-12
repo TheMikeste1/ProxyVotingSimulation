@@ -13,3 +13,15 @@ impl VotingMechanism for MeanVotingMechanism {
             / total_weight
     }
 }
+
+impl MeanVotingMechanism {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Default for MeanVotingMechanism {
+    fn default() -> Self {
+        Self::new()
+    }
+}

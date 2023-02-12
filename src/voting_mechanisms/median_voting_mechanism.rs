@@ -21,3 +21,15 @@ impl VotingMechanism for MedianVotingMechanism {
         unreachable!("Sum of agents' weight did not reach total weight!");
     }
 }
+
+impl MedianVotingMechanism {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Default for MedianVotingMechanism {
+    fn default() -> Self {
+        Self::new()
+    }
+}

@@ -1,4 +1,4 @@
-use rand::distributions::Distribution;
+use crate::Distribution;
 use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -28,10 +28,10 @@ impl Agent {
     pub fn update_preference(
         &mut self,
         extent: f64,
-        distribution: &impl Distribution<f64>,
+        distribution: &Distribution,
         rng: &mut (impl rand::Rng + ?Sized),
     ) {
-        self.preference = distribution.sample(rng) * 2f64 + (-extent);
+        self.preference = distribution.sample(rng, -extent, extent);
     }
 }
 

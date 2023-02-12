@@ -16,3 +16,15 @@ impl CoordinationMechanism for MedianCoordinationMechanism {
         preferences[len / 2]
     }
 }
+
+impl MedianCoordinationMechanism {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Default for MedianCoordinationMechanism {
+    fn default() -> Self {
+        Self::new()
+    }
+}

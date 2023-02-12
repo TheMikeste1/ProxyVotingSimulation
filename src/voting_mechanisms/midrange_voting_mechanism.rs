@@ -15,3 +15,15 @@ impl VotingMechanism for MidrangeVotingMechanism {
         (ordered_votes.first().unwrap().vote + ordered_votes.last().unwrap().vote) / 2.0
     }
 }
+
+impl MidrangeVotingMechanism {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Default for MidrangeVotingMechanism {
+    fn default() -> Self {
+        Self::new()
+    }
+}

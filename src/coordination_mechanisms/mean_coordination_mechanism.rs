@@ -16,3 +16,15 @@ impl CoordinationMechanism for MeanCoordinationMechanism {
             ) as f64
     }
 }
+
+impl MeanCoordinationMechanism {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Default for MeanCoordinationMechanism {
+    fn default() -> Self {
+        Self::new()
+    }
+}

@@ -8,3 +8,15 @@ impl CoordinationMechanism for ExpertCoordinationMechanism {
         expert.get_preference()
     }
 }
+
+impl ExpertCoordinationMechanism {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Default for ExpertCoordinationMechanism {
+    fn default() -> Self {
+        Self::new()
+    }
+}

@@ -4,7 +4,10 @@ pub struct NamedValue<T> {
 }
 
 impl<T> NamedValue<T> {
-    pub fn new(name: String, value: T) -> NamedValue<T> {
-        NamedValue { name, value }
+    pub fn new(name: &str, value: T) -> NamedValue<T> {
+        Self {
+            name: name.into(),
+            value,
+        }
     }
 }
