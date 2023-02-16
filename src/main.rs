@@ -72,7 +72,7 @@ fn main() {
 
     let mut rng = rand::thread_rng();
     let num_agents = 512;
-    let rows_per_combo = 10;
+    let rows_per_combo = 128;
     let rows = generate_rows(
         num_agents,
         rows_per_combo,
