@@ -39,6 +39,7 @@ pub fn save_to_file(data: Vec<DataRow>) {
         Field::new("min_proxy_weight", DataType::Float64, false),
         Field::new("max_proxy_weight", DataType::Float64, false),
         Field::new("average_proxy_weight", DataType::Float64, false),
+        Field::new("median_proxy_weight", DataType::Float64, false),
     ]));
 
     // Create the dictionary arrays
@@ -60,6 +61,7 @@ pub fn save_to_file(data: Vec<DataRow>) {
     let mut min_proxy_weight_array_builder = Float64Array::builder(data.len());
     let mut max_proxy_weight_array_builder = Float64Array::builder(data.len());
     let mut average_proxy_weight_array_builder = Float64Array::builder(data.len());
+    let mut median_proxy_weight_array_builder = Float64Array::builder(data.len());
 
     for row in data {
         id_builder.append_value(row.generation_id);
@@ -83,6 +85,7 @@ pub fn save_to_file(data: Vec<DataRow>) {
         min_proxy_weight_array_builder.append_value(row.min_proxy_weight);
         max_proxy_weight_array_builder.append_value(row.max_proxy_weight);
         average_proxy_weight_array_builder.append_value(row.average_proxy_weight);
+        median_proxy_weight_array_builder.append_value(row.median_proxy_weight);
     }
 
     let id_array = id_builder.finish();
@@ -100,6 +103,7 @@ pub fn save_to_file(data: Vec<DataRow>) {
     let min_proxy_weight_array = min_proxy_weight_array_builder.finish();
     let max_proxy_weight_array = max_proxy_weight_array_builder.finish();
     let average_proxy_weight_array = average_proxy_weight_array_builder.finish();
+    let median_proxy_weight_array = median_proxy_weight_array_builder.finish();
 
     let batch = RecordBatch::try_new(
         Arc::clone(&schema),
@@ -115,6 +119,7 @@ pub fn save_to_file(data: Vec<DataRow>) {
             Arc::new(min_proxy_weight_array),
             Arc::new(max_proxy_weight_array),
             Arc::new(average_proxy_weight_array),
+            Arc::new(median_proxy_weight_array),
         ],
     )
     .expect("Error creating record batch");

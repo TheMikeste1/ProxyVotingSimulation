@@ -14,4 +14,5 @@ pub struct DataRow {
     pub min_proxy_weight: f64,
     pub max_proxy_weight: f64,
     pub average_proxy_weight: f64,
+    pub median_proxy_weight: f64,
 }

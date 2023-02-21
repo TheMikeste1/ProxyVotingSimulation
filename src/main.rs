@@ -100,7 +100,7 @@ fn generate_rows(
 
     let total_combos = (num_agents - 2)
         * ids.len()
-        * coordination_mechanisms.len()
+        * (coordination_mechanisms.len() + 2)  // +2 for All Agents and Active Only
         * voting_mechanisms.len()
         * distributions.len()
         * 2; // x2 for shifted and unshifted
@@ -118,7 +118,7 @@ fn generate_rows(
     for (distribution, id) in generations {
         let dist_name = distribution.0.to_string();
         let mut agents = (0..num_agents)
-            .map(|_| Agent::new_random(1.0, 0.2, distribution.1, rng))
+            .map(|_| Agent::new_random(1.0, 0.1, distribution.1, rng))
             .collect_vec();
 
         // Preshift
@@ -142,8 +142,10 @@ fn generate_rows(
                     min_proxy_weight: 1f64,
                     max_proxy_weight: 1f64,
                     average_proxy_weight: 1f64,
+                    median_proxy_weight: 1f64,
                     shifted: false,
                 });
+                progress_bar.inc(1);
 
                 let estimate = vote_no_delegations(proxies.as_slice(), &**vm);
                 rows.push(DataRow {
@@ -157,8 +159,10 @@ fn generate_rows(
                     min_proxy_weight: 1f64,
                     max_proxy_weight: 1f64,
                     average_proxy_weight: 1f64,
+                    median_proxy_weight: 1f64,
                     shifted: false,
                 });
+                progress_bar.inc(1);
 
                 for (cm_name, cm) in coordination_mechanisms {
                     let cm_name = cm_name.to_string();
@@ -183,6 +187,12 @@ fn generate_rows(
                     let average_weight =
                         delegations.iter().map(|d| d.weight).sum::<f64>()
                             / num_proxies as f64;
+                    let median_weight = delegations
+                        .iter()
+                        .map(|d| d.weight)
+                        .sorted_by(|w1, w2| w1.partial_cmp(w2).unwrap())
+                        .nth(num_proxies / 2)
+                        .unwrap();
                     let estimate = vm.vote(delegations.as_slice());
 
                     rows.push(DataRow {
@@ -196,6 +206,7 @@ fn generate_rows(
                         min_proxy_weight: min_weight,
                         max_proxy_weight: max_weight,
                         average_proxy_weight: average_weight,
+                        median_proxy_weight: median_weight,
                         shifted: false,
                     });
                     progress_bar.inc(1);
@@ -227,8 +238,10 @@ fn generate_rows(
                     min_proxy_weight: 1f64,
                     max_proxy_weight: 1f64,
                     average_proxy_weight: 1f64,
+                    median_proxy_weight: 1f64,
                     shifted: true,
                 });
+                progress_bar.inc(1);
 
                 let estimate = vote_no_delegations(proxies.as_slice(), &**vm);
                 rows.push(DataRow {
@@ -242,8 +255,10 @@ fn generate_rows(
                     min_proxy_weight: 1f64,
                     max_proxy_weight: 1f64,
                     average_proxy_weight: 1f64,
+                    median_proxy_weight: 1f64,
                     shifted: true,
                 });
+                progress_bar.inc(1);
 
                 for (cm_name, cm) in coordination_mechanisms {
                     let cm_name = cm_name.to_string();
@@ -268,6 +283,12 @@ fn generate_rows(
                     let average_weight =
                         delegations.iter().map(|d| d.weight).sum::<f64>()
                             / num_proxies as f64;
+                    let median_weight = delegations
+                        .iter()
+                        .map(|d| d.weight)
+                        .sorted_by(|w1, w2| w1.partial_cmp(w2).unwrap())
+                        .nth(num_proxies / 2)
+                        .unwrap();
                     let estimate = vm.vote(delegations.as_slice());
 
                     rows.push(DataRow {
@@ -281,6 +302,7 @@ fn generate_rows(
                         min_proxy_weight: min_weight,
                         max_proxy_weight: max_weight,
                         average_proxy_weight: average_weight,
+                        median_proxy_weight: median_weight,
                         shifted: true,
                     });
                     progress_bar.inc(1);
