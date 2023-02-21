@@ -324,7 +324,7 @@ fn select_delegates<'a>(
     for delegator in delegators.iter() {
         let (chosen, _) = proxies
             .iter()
-            .map(|&p| (p, delegator.get_preference() - p.get_preference()))
+            .map(|&p| (p, delegator.distance_to(p)))
             .min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap())
             .unwrap();
         delegation_map.get_mut(chosen).unwrap().push(delegator);

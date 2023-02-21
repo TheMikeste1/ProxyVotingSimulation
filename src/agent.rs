@@ -38,6 +38,10 @@ impl Agent {
         self.preference
     }
 
+    pub fn distance_to(&self, other: &Self) -> f64 {
+        (self.preference - other.preference).abs()
+    }
+
     pub fn swap_preference(&mut self) {
         std::mem::swap(&mut self.preference, &mut self.shifted_preference);
     }
