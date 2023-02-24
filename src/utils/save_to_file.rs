@@ -5,7 +5,7 @@ use arrow::record_batch::RecordBatch;
 use std::path::Path;
 use std::sync::Arc;
 
-pub fn save_to_file(data: Vec<DataRow>) {
+pub fn save_to_file(name: &str, data: Vec<DataRow>) {
     use arrow::datatypes;
 
     // Save all the data to an Apache IPC file
@@ -129,10 +129,7 @@ pub fn save_to_file(data: Vec<DataRow>) {
         std::fs::create_dir("data/").expect("Could not create directory");
     }
 
-    let filepath = format!(
-        "data/{}.arrow",
-        chrono::Local::now().format("%Y-%m-%d_%H-%M-%S")
-    );
+    let filepath = format!("data/{}.arrow", name);
     println!("Saving data to {filepath}");
     let mut writer = arrow::ipc::writer::FileWriter::try_new(
         std::fs::File::create(filepath).expect("Could not create file"),

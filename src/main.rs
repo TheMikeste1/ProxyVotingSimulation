@@ -20,6 +20,8 @@ pub use prelude::*;
 
 use indicatif::ProgressBar;
 use itertools::Itertools;
+use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 use std::collections::HashMap;
 
 use crate::utils::save_to_file;
@@ -70,7 +72,8 @@ fn main() {
         ),
     ]);
 
-    let mut rng = rand::thread_rng();
+    let seed = rand::thread_rng().gen();
+    let mut rng = StdRng::seed_from_u64(seed);
     let num_agents = 512;
     let rows_per_combo = 128;
     let rows = generate_rows(
@@ -81,7 +84,7 @@ fn main() {
         &distributions,
         &mut rng,
     );
-    save_to_file(rows);
+    save_to_file(&seed.to_string(), rows);
 }
 
 fn generate_rows(
