@@ -34,7 +34,7 @@ pub fn save_to_file(data: Vec<DataRow>) {
             false,
         ),
         Field::new("number_of_proxies", DataType::UInt32, false),
-        Field::new("number_of_delegates", DataType::UInt32, false),
+        Field::new("number_of_delegators", DataType::UInt32, false),
         Field::new("estimate", DataType::Float64, false),
         Field::new("min_proxy_weight", DataType::Float64, false),
         Field::new("max_proxy_weight", DataType::Float64, false),
@@ -54,7 +54,7 @@ pub fn save_to_file(data: Vec<DataRow>) {
         StringDictionaryBuilder::<datatypes::Int8Type>::new();
 
     let mut number_of_proxies_array_builder = UInt32Array::builder(data.len());
-    let mut number_of_delegates_array_builder = UInt32Array::builder(data.len());
+    let mut number_of_delegators_array_builder = UInt32Array::builder(data.len());
 
     let mut estimate_array_builder = Float64Array::builder(data.len());
 
@@ -78,7 +78,7 @@ pub fn save_to_file(data: Vec<DataRow>) {
             .expect("Failed to append voting mechanism");
 
         number_of_proxies_array_builder.append_value(row.number_of_proxies);
-        number_of_delegates_array_builder.append_value(row.number_of_delegates);
+        number_of_delegators_array_builder.append_value(row.number_of_delegators);
 
         estimate_array_builder.append_value(row.estimate);
 
@@ -96,7 +96,7 @@ pub fn save_to_file(data: Vec<DataRow>) {
     let voting_mechanism_array = voting_mechanism_array_builder.finish();
 
     let number_of_proxies_array = number_of_proxies_array_builder.finish();
-    let number_of_delegates_array = number_of_delegates_array_builder.finish();
+    let number_of_delegators_array = number_of_delegators_array_builder.finish();
 
     let estimate_array = estimate_array_builder.finish();
 
@@ -114,7 +114,7 @@ pub fn save_to_file(data: Vec<DataRow>) {
             Arc::new(coordination_mechanism_array),
             Arc::new(voting_mechanism_array),
             Arc::new(number_of_proxies_array),
-            Arc::new(number_of_delegates_array),
+            Arc::new(number_of_delegators_array),
             Arc::new(estimate_array),
             Arc::new(min_proxy_weight_array),
             Arc::new(max_proxy_weight_array),

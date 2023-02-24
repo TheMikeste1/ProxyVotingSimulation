@@ -6,7 +6,7 @@ pub struct DataRow {
     pub coordination_mechanism: String,
     pub voting_mechanism: String,
 
-    pub number_of_delegates: u32,
+    pub number_of_delegators: u32,
     pub number_of_proxies: u32,
 
     pub estimate: f64,
