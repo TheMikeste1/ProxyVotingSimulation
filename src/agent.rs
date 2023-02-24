@@ -9,6 +9,7 @@ pub struct Agent {
     preference: f64,
     shifted_preference: f64,
     id: usize,
+    shifted: bool,
 }
 
 impl Agent {
@@ -19,6 +20,7 @@ impl Agent {
                 preference: 0f64,
                 shifted_preference: 0f64,
                 id: this_id,
+                shifted: false,
             }
         }
     }
@@ -35,15 +37,19 @@ impl Agent {
     }
 
     pub fn get_preference(&self) -> f64 {
-        self.preference
+        if self.shifted {
+            self.shifted_preference
+        } else {
+            self.preference
+        }
     }
 
     pub fn distance_to(&self, other: &Self) -> f64 {
-        (self.preference - other.preference).abs()
+        (self.get_preference() - other.get_preference()).abs()
     }
 
     pub fn swap_preference(&mut self) {
-        std::mem::swap(&mut self.preference, &mut self.shifted_preference);
+        self.shifted = !self.shifted;
     }
 
     pub fn update_preference(
