@@ -38,18 +38,6 @@ fn main() {
         .insert("Mean", Box::<cm::MeanCoordinationMechanism>::default());
     coordination_mechanisms
         .insert("Median", Box::<cm::MedianCoordinationMechanism>::default());
-    coordination_mechanisms.insert(
-        "ExpertCandidate",
-        Box::<cm::ExpertCandidateCoordinationMechanism>::default(),
-    );
-    coordination_mechanisms.insert(
-        "MeanCandidate",
-        Box::<cm::MeanCandidateCoordinationMechanism>::default(),
-    );
-    coordination_mechanisms.insert(
-        "MedianCandidate",
-        Box::<cm::MedianCandidateCoordinationMechanism>::default(),
-    );
     let coordination_mechanisms = coordination_mechanisms;
 
     let mut voting_mechanisms = HashMap::<&str, Box<dyn vm::VotingMechanism>>::new();
@@ -86,7 +74,7 @@ fn main() {
 
     let seed = rand::thread_rng().gen();
     let mut rng = StdRng::seed_from_u64(seed);
-    let num_agents = 512;
+    let num_agents = 16;
     let rows_per_combo = 128;
     let shift = 0.5;
     let rows = generate_rows(
@@ -199,6 +187,7 @@ fn run_for_agents<'a>(
                 distribution: dist_name.clone(),
                 coordination_mechanism: "All Agents".to_string(),
                 voting_mechanism: vm_name.clone(),
+                discrete_vote: false,
                 number_of_delegators: (num_agents - num_proxies) as u32,
                 number_of_proxies: num_proxies as u32,
                 estimate,
@@ -217,8 +206,9 @@ fn run_for_agents<'a>(
             rows.push(DataRow {
                 generation_id: run_id,
                 distribution: dist_name.clone(),
-                coordination_mechanism: "All Agents Candidate".to_string(),
+                coordination_mechanism: "All Agents".to_string(),
                 voting_mechanism: vm_name.clone(),
+                discrete_vote: true,
                 number_of_delegators: (num_agents - num_proxies) as u32,
                 number_of_proxies: num_proxies as u32,
                 estimate,
@@ -236,6 +226,7 @@ fn run_for_agents<'a>(
                 distribution: dist_name.clone(),
                 coordination_mechanism: "Active Only".to_string(),
                 voting_mechanism: vm_name.clone(),
+                discrete_vote: false,
                 number_of_delegators: (num_agents - num_proxies) as u32,
                 number_of_proxies: num_proxies as u32,
                 estimate,
@@ -251,8 +242,9 @@ fn run_for_agents<'a>(
             rows.push(DataRow {
                 generation_id: run_id,
                 distribution: dist_name.clone(),
-                coordination_mechanism: "Active Only Candidate".to_string(),
+                coordination_mechanism: "Active Only".to_string(),
                 voting_mechanism: vm_name.clone(),
+                discrete_vote: true,
                 number_of_delegators: (num_agents - num_proxies) as u32,
                 number_of_proxies: num_proxies as u32,
                 estimate,
@@ -292,13 +284,40 @@ fn run_for_agents<'a>(
                     .sorted_by(|w1, w2| w1.partial_cmp(w2).unwrap())
                     .nth(num_proxies / 2)
                     .unwrap();
-                let estimate = vm.vote(delegations.as_slice());
 
+                let estimate = vm.vote(delegations.as_slice());
                 rows.push(DataRow {
                     generation_id: run_id,
                     distribution: dist_name.clone(),
                     coordination_mechanism: cm_name.clone(),
                     voting_mechanism: vm_name.clone(),
+                    discrete_vote: false,
+                    number_of_delegators: (num_agents - num_proxies) as u32,
+                    number_of_proxies: num_proxies as u32,
+                    estimate,
+                    min_proxy_weight: min_weight,
+                    max_proxy_weight: max_weight,
+                    average_proxy_weight: average_weight,
+                    median_proxy_weight: median_weight,
+                    shifted,
+                });
+
+                let estimate = vm.vote(
+                    delegations
+                        .iter()
+                        .map(|p| WeightedVote {
+                            vote: p.vote.round(),
+                            weight: p.weight,
+                        })
+                        .collect_vec()
+                        .as_slice(),
+                );
+                rows.push(DataRow {
+                    generation_id: run_id,
+                    distribution: dist_name.clone(),
+                    coordination_mechanism: cm_name.clone(),
+                    voting_mechanism: vm_name.clone(),
+                    discrete_vote: true,
                     number_of_delegators: (num_agents - num_proxies) as u32,
                     number_of_proxies: num_proxies as u32,
                     estimate,

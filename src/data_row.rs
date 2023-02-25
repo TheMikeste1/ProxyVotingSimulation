@@ -5,6 +5,7 @@ pub struct DataRow {
     pub distribution: String,
     pub coordination_mechanism: String,
     pub voting_mechanism: String,
+    pub discrete_vote: bool,
 
     pub number_of_delegators: u32,
     pub number_of_proxies: u32,
