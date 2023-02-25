@@ -10,7 +10,8 @@ impl CoordinationMechanism for MeanCandidateCoordinationMechanism {
             / (
                 delegations.len() + 1
                 // +1 for the delegatee
-            ) as f64).round()
+            ) as f64)
+            .round()
     }
 }
 

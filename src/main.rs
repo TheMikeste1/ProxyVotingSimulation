@@ -38,12 +38,18 @@ fn main() {
         .insert("Mean", Box::<cm::MeanCoordinationMechanism>::default());
     coordination_mechanisms
         .insert("Median", Box::<cm::MedianCoordinationMechanism>::default());
-    coordination_mechanisms
-        .insert("ExpertCandidate", Box::<cm::ExpertCandidateCoordinationMechanism>::default());
-    coordination_mechanisms
-        .insert("MeanCandidate", Box::<cm::MeanCandidateCoordinationMechanism>::default());
-    coordination_mechanisms
-        .insert("MedianCandidate", Box::<cm::MedianCandidateCoordinationMechanism>::default());
+    coordination_mechanisms.insert(
+        "ExpertCandidate",
+        Box::<cm::ExpertCandidateCoordinationMechanism>::default(),
+    );
+    coordination_mechanisms.insert(
+        "MeanCandidate",
+        Box::<cm::MeanCandidateCoordinationMechanism>::default(),
+    );
+    coordination_mechanisms.insert(
+        "MedianCandidate",
+        Box::<cm::MedianCandidateCoordinationMechanism>::default(),
+    );
     let coordination_mechanisms = coordination_mechanisms;
 
     let mut voting_mechanisms = HashMap::<&str, Box<dyn vm::VotingMechanism>>::new();
