@@ -75,20 +75,23 @@ fn main() {
     let seed = rand::thread_rng().gen();
     let mut rng = StdRng::seed_from_u64(seed);
     let num_agents = 512;
-    let rows_per_combo = 128;
+    let rows_per_combo = 1024;
+    let shift = 0.5;
     let rows = generate_rows(
         num_agents,
+        shift,
         rows_per_combo,
         &coordination_mechanisms,
         &voting_mechanisms,
         &distributions,
         &mut rng,
     );
-    save_to_file(&seed.to_string(), rows);
+    save_to_file(&format!("{}_shift-{}", seed, shift), rows);
 }
 
 fn generate_rows(
     num_agents: usize,
+    shift_extent: f64,
     rows_per_combo: usize,
     coordination_mechanisms: &HashMap<&str, Box<dyn cm::CoordinationMechanism>>,
     voting_mechanisms: &HashMap<&str, Box<dyn vm::VotingMechanism>>,
@@ -121,7 +124,7 @@ fn generate_rows(
     for (distribution, id) in generations {
         let dist_name = distribution.0.to_string();
         let mut agents = (0..num_agents)
-            .map(|_| Agent::new_random(1.0, 0.1, distribution.1, rng))
+            .map(|_| Agent::new_random(1.0, shift_extent, distribution.1, rng))
             .collect_vec();
 
         // Preshift
