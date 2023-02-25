@@ -87,7 +87,7 @@ fn main() {
     let seed = rand::thread_rng().gen();
     let mut rng = StdRng::seed_from_u64(seed);
     let num_agents = 512;
-    let rows_per_combo = 1024;
+    let rows_per_combo = 128;
     let shift = 0.5;
     let rows = generate_rows(
         num_agents,
@@ -98,7 +98,10 @@ fn main() {
         &distributions,
         &mut rng,
     );
-    save_to_file(&format!("{}_shift-{}", seed, shift), rows);
+    save_to_file(
+        &format!("{}_shift-{}_agents-{}", seed, shift, num_agents),
+        rows,
+    );
 }
 
 fn generate_rows(
@@ -118,7 +121,7 @@ fn generate_rows(
 
     let total_combos = (num_agents - 2)
         * ids.len()
-        * (coordination_mechanisms.len() + 2)  // +2 for All Agents and Active Only
+        * (coordination_mechanisms.len() + 4)  // +4 for All Agents and Active Only and candidate versions
         * voting_mechanisms.len()
         * distributions.len()
         * 2; // x2 for shifted and unshifted
@@ -140,195 +143,175 @@ fn generate_rows(
             .collect_vec();
 
         // Preshift
-        for num_proxies in 1..num_agents {
-            let proxies = agents.iter().take(num_proxies).collect_vec();
-            let delegators = agents.iter().skip(num_proxies).collect_vec();
-            let delegation_map = select_delegates(&proxies, &delegators);
-
-            for (vm_name, vm) in voting_mechanisms {
-                let vm_name = vm_name.to_string();
-                let estimate =
-                    vote_no_delegations(agents.iter().collect_vec().as_slice(), &**vm);
-                rows.push(DataRow {
-                    generation_id: *id as u32,
-                    distribution: dist_name.clone(),
-                    coordination_mechanism: "All Agents".to_string(),
-                    voting_mechanism: vm_name.clone(),
-                    number_of_delegators: (num_agents - num_proxies) as u32,
-                    number_of_proxies: num_proxies as u32,
-                    estimate,
-                    min_proxy_weight: 1f64,
-                    max_proxy_weight: 1f64,
-                    average_proxy_weight: 1f64,
-                    median_proxy_weight: 1f64,
-                    shifted: false,
-                });
-                progress_bar.inc(1);
-
-                let estimate = vote_no_delegations(proxies.as_slice(), &**vm);
-                rows.push(DataRow {
-                    generation_id: *id as u32,
-                    distribution: dist_name.clone(),
-                    coordination_mechanism: "Active Only".to_string(),
-                    voting_mechanism: vm_name.clone(),
-                    number_of_delegators: (num_agents - num_proxies) as u32,
-                    number_of_proxies: num_proxies as u32,
-                    estimate,
-                    min_proxy_weight: 1f64,
-                    max_proxy_weight: 1f64,
-                    average_proxy_weight: 1f64,
-                    median_proxy_weight: 1f64,
-                    shifted: false,
-                });
-                progress_bar.inc(1);
-
-                for (cm_name, cm) in coordination_mechanisms {
-                    let cm_name = cm_name.to_string();
-                    let delegations = delegation_map
-                        .iter()
-                        .map(|(p, d)| {
-                            let vote = cm.coordinate(p, d.as_slice());
-                            let weight = (d.len() + 1) as f64;
-                            WeightedVote { vote, weight }
-                        })
-                        .collect_vec();
-                    let min_weight = delegations
-                        .iter()
-                        .map(|d| d.weight)
-                        .min_by(|w1, w2| w1.partial_cmp(w2).unwrap())
-                        .unwrap();
-                    let max_weight = delegations
-                        .iter()
-                        .map(|d| d.weight)
-                        .max_by(|w1, w2| w1.partial_cmp(w2).unwrap())
-                        .unwrap();
-                    let average_weight =
-                        delegations.iter().map(|d| d.weight).sum::<f64>()
-                            / num_proxies as f64;
-                    let median_weight = delegations
-                        .iter()
-                        .map(|d| d.weight)
-                        .sorted_by(|w1, w2| w1.partial_cmp(w2).unwrap())
-                        .nth(num_proxies / 2)
-                        .unwrap();
-                    let estimate = vm.vote(delegations.as_slice());
-
-                    rows.push(DataRow {
-                        generation_id: *id as u32,
-                        distribution: dist_name.clone(),
-                        coordination_mechanism: cm_name.clone(),
-                        voting_mechanism: vm_name.clone(),
-                        number_of_delegators: (num_agents - num_proxies) as u32,
-                        number_of_proxies: num_proxies as u32,
-                        estimate,
-                        min_proxy_weight: min_weight,
-                        max_proxy_weight: max_weight,
-                        average_proxy_weight: average_weight,
-                        median_proxy_weight: median_weight,
-                        shifted: false,
-                    });
-                    progress_bar.inc(1);
-                }
-            }
-        }
+        run_for_agents(
+            *id as u32,
+            &progress_bar,
+            &mut rows,
+            num_agents,
+            agents.as_slice(),
+            voting_mechanisms,
+            coordination_mechanisms,
+            dist_name.clone(),
+            false,
+        );
 
         // Shift
         agents.iter_mut().for_each(|a| a.swap_preference());
 
         // Postshift
-        for num_proxies in 1..num_agents {
-            let proxies = agents.iter().take(num_proxies).collect_vec();
-            let delegators = agents.iter().skip(num_proxies).collect_vec();
-            let delegation_map = select_delegates(&proxies, &delegators);
+        run_for_agents(
+            *id as u32,
+            &progress_bar,
+            &mut rows,
+            num_agents,
+            agents.as_slice(),
+            voting_mechanisms,
+            coordination_mechanisms,
+            dist_name,
+            true,
+        );
+    }
+    rows
+}
 
-            for (vm_name, vm) in voting_mechanisms {
-                let vm_name = vm_name.to_string();
-                let estimate =
-                    vote_no_delegations(agents.iter().collect_vec().as_slice(), &**vm);
+fn run_for_agents<'a>(
+    run_id: u32,
+    progress_bar: &ProgressBar,
+    rows: &mut Vec<DataRow>,
+    num_agents: usize,
+    agents: &'a [Agent],
+    voting_mechanisms: &'a HashMap<&str, Box<dyn vm::VotingMechanism>>,
+    coordination_mechanisms: &'a HashMap<&str, Box<dyn cm::CoordinationMechanism>>,
+    dist_name: String,
+    shifted: bool,
+) {
+    for num_proxies in 1..num_agents {
+        let proxies = agents.iter().take(num_proxies).collect_vec();
+        let delegators = agents.iter().skip(num_proxies).collect_vec();
+        let delegation_map = select_delegates(&proxies, &delegators);
+
+        for (vm_name, vm) in voting_mechanisms {
+            let vm_name = vm_name.to_string();
+            let estimate =
+                vote_no_delegations(agents.iter().collect_vec().as_slice(), &**vm);
+            rows.push(DataRow {
+                generation_id: run_id,
+                distribution: dist_name.clone(),
+                coordination_mechanism: "All Agents".to_string(),
+                voting_mechanism: vm_name.clone(),
+                number_of_delegators: (num_agents - num_proxies) as u32,
+                number_of_proxies: num_proxies as u32,
+                estimate,
+                min_proxy_weight: 1f64,
+                max_proxy_weight: 1f64,
+                average_proxy_weight: 1f64,
+                median_proxy_weight: 1f64,
+                shifted,
+            });
+            progress_bar.inc(1);
+
+            let estimate = vote_candidate_no_delegations(
+                agents.iter().collect_vec().as_slice(),
+                &**vm,
+            );
+            rows.push(DataRow {
+                generation_id: run_id,
+                distribution: dist_name.clone(),
+                coordination_mechanism: "All Agents Candidate".to_string(),
+                voting_mechanism: vm_name.clone(),
+                number_of_delegators: (num_agents - num_proxies) as u32,
+                number_of_proxies: num_proxies as u32,
+                estimate,
+                min_proxy_weight: 1f64,
+                max_proxy_weight: 1f64,
+                average_proxy_weight: 1f64,
+                median_proxy_weight: 1f64,
+                shifted,
+            });
+            progress_bar.inc(1);
+
+            let estimate = vote_no_delegations(proxies.as_slice(), &**vm);
+            rows.push(DataRow {
+                generation_id: run_id,
+                distribution: dist_name.clone(),
+                coordination_mechanism: "Active Only".to_string(),
+                voting_mechanism: vm_name.clone(),
+                number_of_delegators: (num_agents - num_proxies) as u32,
+                number_of_proxies: num_proxies as u32,
+                estimate,
+                min_proxy_weight: 1f64,
+                max_proxy_weight: 1f64,
+                average_proxy_weight: 1f64,
+                median_proxy_weight: 1f64,
+                shifted,
+            });
+            progress_bar.inc(1);
+
+            let estimate = vote_candidate_no_delegations(proxies.as_slice(), &**vm);
+            rows.push(DataRow {
+                generation_id: run_id,
+                distribution: dist_name.clone(),
+                coordination_mechanism: "Active Only Candidate".to_string(),
+                voting_mechanism: vm_name.clone(),
+                number_of_delegators: (num_agents - num_proxies) as u32,
+                number_of_proxies: num_proxies as u32,
+                estimate,
+                min_proxy_weight: 1f64,
+                max_proxy_weight: 1f64,
+                average_proxy_weight: 1f64,
+                median_proxy_weight: 1f64,
+                shifted,
+            });
+            progress_bar.inc(1);
+
+            for (cm_name, cm) in coordination_mechanisms {
+                let cm_name = cm_name.to_string();
+                let delegations = delegation_map
+                    .iter()
+                    .map(|(p, d)| {
+                        let vote = cm.coordinate(p, d.as_slice());
+                        let weight = (d.len() + 1) as f64;
+                        WeightedVote { vote, weight }
+                    })
+                    .collect_vec();
+                let min_weight = delegations
+                    .iter()
+                    .map(|d| d.weight)
+                    .min_by(|w1, w2| w1.partial_cmp(w2).unwrap())
+                    .unwrap();
+                let max_weight = delegations
+                    .iter()
+                    .map(|d| d.weight)
+                    .max_by(|w1, w2| w1.partial_cmp(w2).unwrap())
+                    .unwrap();
+                let average_weight = delegations.iter().map(|d| d.weight).sum::<f64>()
+                    / num_proxies as f64;
+                let median_weight = delegations
+                    .iter()
+                    .map(|d| d.weight)
+                    .sorted_by(|w1, w2| w1.partial_cmp(w2).unwrap())
+                    .nth(num_proxies / 2)
+                    .unwrap();
+                let estimate = vm.vote(delegations.as_slice());
+
                 rows.push(DataRow {
-                    generation_id: *id as u32,
+                    generation_id: run_id,
                     distribution: dist_name.clone(),
-                    coordination_mechanism: "All Agents".to_string(),
+                    coordination_mechanism: cm_name.clone(),
                     voting_mechanism: vm_name.clone(),
                     number_of_delegators: (num_agents - num_proxies) as u32,
                     number_of_proxies: num_proxies as u32,
                     estimate,
-                    min_proxy_weight: 1f64,
-                    max_proxy_weight: 1f64,
-                    average_proxy_weight: 1f64,
-                    median_proxy_weight: 1f64,
-                    shifted: true,
+                    min_proxy_weight: min_weight,
+                    max_proxy_weight: max_weight,
+                    average_proxy_weight: average_weight,
+                    median_proxy_weight: median_weight,
+                    shifted,
                 });
                 progress_bar.inc(1);
-
-                let estimate = vote_no_delegations(proxies.as_slice(), &**vm);
-                rows.push(DataRow {
-                    generation_id: *id as u32,
-                    distribution: dist_name.clone(),
-                    coordination_mechanism: "Active Only".to_string(),
-                    voting_mechanism: vm_name.clone(),
-                    number_of_delegators: (num_agents - num_proxies) as u32,
-                    number_of_proxies: num_proxies as u32,
-                    estimate,
-                    min_proxy_weight: 1f64,
-                    max_proxy_weight: 1f64,
-                    average_proxy_weight: 1f64,
-                    median_proxy_weight: 1f64,
-                    shifted: true,
-                });
-                progress_bar.inc(1);
-
-                for (cm_name, cm) in coordination_mechanisms {
-                    let cm_name = cm_name.to_string();
-                    let delegations = delegation_map
-                        .iter()
-                        .map(|(p, d)| {
-                            let vote = cm.coordinate(p, d.as_slice());
-                            let weight = (d.len() + 1) as f64;
-                            WeightedVote { vote, weight }
-                        })
-                        .collect_vec();
-                    let min_weight = delegations
-                        .iter()
-                        .map(|d| d.weight)
-                        .min_by(|w1, w2| w1.partial_cmp(w2).unwrap())
-                        .unwrap();
-                    let max_weight = delegations
-                        .iter()
-                        .map(|d| d.weight)
-                        .max_by(|w1, w2| w1.partial_cmp(w2).unwrap())
-                        .unwrap();
-                    let average_weight =
-                        delegations.iter().map(|d| d.weight).sum::<f64>()
-                            / num_proxies as f64;
-                    let median_weight = delegations
-                        .iter()
-                        .map(|d| d.weight)
-                        .sorted_by(|w1, w2| w1.partial_cmp(w2).unwrap())
-                        .nth(num_proxies / 2)
-                        .unwrap();
-                    let estimate = vm.vote(delegations.as_slice());
-
-                    rows.push(DataRow {
-                        generation_id: *id as u32,
-                        distribution: dist_name.clone(),
-                        coordination_mechanism: cm_name.clone(),
-                        voting_mechanism: vm_name.clone(),
-                        number_of_delegators: (num_agents - num_proxies) as u32,
-                        number_of_proxies: num_proxies as u32,
-                        estimate,
-                        min_proxy_weight: min_weight,
-                        max_proxy_weight: max_weight,
-                        average_proxy_weight: average_weight,
-                        median_proxy_weight: median_weight,
-                        shifted: true,
-                    });
-                    progress_bar.inc(1);
-                }
             }
         }
     }
-    rows
 }
 
 fn select_delegates<'a>(
@@ -358,6 +341,20 @@ fn vote_no_delegations(
         .iter()
         .map(|p| WeightedVote {
             vote: p.get_preference(),
+            weight: 1f64,
+        })
+        .collect_vec();
+    voting_mechanism.vote(delegations.as_slice())
+}
+
+fn vote_candidate_no_delegations(
+    agents: &[&Agent],
+    voting_mechanism: &dyn vm::VotingMechanism,
+) -> f64 {
+    let delegations = agents
+        .iter()
+        .map(|p| WeightedVote {
+            vote: p.get_preference().round(),
             weight: 1f64,
         })
         .collect_vec();
