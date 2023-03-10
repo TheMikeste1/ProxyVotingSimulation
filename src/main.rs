@@ -76,7 +76,7 @@ fn main() {
     let mut rng = StdRng::seed_from_u64(seed);
     let num_agents = 24;
     let rows_per_combo = 1024;
-    let shift = 0.5;
+    let shift = 5.0;
     let rows = generate_rows(
         num_agents,
         shift,
