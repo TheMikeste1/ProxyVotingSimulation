@@ -74,8 +74,8 @@ fn main() {
 
     let seed = rand::thread_rng().gen();
     let mut rng = StdRng::seed_from_u64(seed);
-    let num_agents = 16;
-    let rows_per_combo = 128;
+    let num_agents = 24;
+    let rows_per_combo = 1024;
     let shift = 0.5;
     let rows = generate_rows(
         num_agents,
@@ -109,7 +109,8 @@ fn generate_rows(
 
     let total_combos = (num_agents - 2)
         * ids.len()
-        * (coordination_mechanisms.len() + 4)  // +4 for All Agents and Active Only and candidate versions
+        * (coordination_mechanisms.len() + 2)  // +2 for All Agents and Active Only
+        * 2 // x2 for candidate mechanisms
         * voting_mechanisms.len()
         * distributions.len()
         * 2; // x2 for shifted and unshifted
