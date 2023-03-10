@@ -163,6 +163,7 @@ fn generate_rows(
     rows
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_for_agents<'a>(
     run_id: u32,
     progress_bar: &ProgressBar,

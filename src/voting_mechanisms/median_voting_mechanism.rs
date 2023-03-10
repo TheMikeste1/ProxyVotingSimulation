@@ -12,9 +12,12 @@ impl VotingMechanism for MedianVotingMechanism {
             .collect::<Vec<_>>();
         let total_weight = weighted_votes.iter().map(|v| v.weight).sum::<f64>();
         let mut weight_sum = 0f64;
-        for WeightedVote { vote, weight } in ordered_votes {
+        for (i, WeightedVote { vote, weight }) in ordered_votes.iter().enumerate() {
             weight_sum += weight;
-            if weight_sum >= total_weight / 2f64 {
+            if weight_sum == total_weight / 2f64 {
+                return (*vote + ordered_votes[i + 1].vote) / 2f64;
+            }
+            if weight_sum > total_weight / 2f64 {
                 return *vote;
             }
         }

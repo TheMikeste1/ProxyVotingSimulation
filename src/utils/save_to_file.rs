@@ -99,7 +99,6 @@ pub fn save_to_file(name: &str, data: Vec<DataRow>) {
     let voting_mechanism_array = voting_mechanism_array_builder.finish();
     let discrete_vote_array = discrete_vote_array_builder.finish();
 
-
     let number_of_proxies_array = number_of_proxies_array_builder.finish();
     let number_of_delegators_array = number_of_delegators_array_builder.finish();
 

@@ -13,7 +13,11 @@ impl CoordinationMechanism for MedianCoordinationMechanism {
             .sorted_by(|a, b| a.partial_cmp(b).unwrap())
             .collect::<Vec<f64>>();
         let len = preferences.len();
-        preferences[len / 2]
+        if len % 2 == 0 {
+            (preferences[len / 2 - 1] + preferences[len / 2]) / 2.0
+        } else {
+            preferences[len / 2]
+        }
     }
 }
 
