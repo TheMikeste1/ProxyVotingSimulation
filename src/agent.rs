@@ -36,7 +36,7 @@ impl Agent {
         agent
     }
 
-    pub fn get_preference(&self) -> f64 {
+    pub fn get_current_preference(&self) -> f64 {
         if self.shifted {
             self.shifted_preference
         } else {
@@ -44,8 +44,16 @@ impl Agent {
         }
     }
 
-    pub fn distance_to(&self, other: &Self) -> f64 {
-        (self.get_preference() - other.get_preference()).abs()
+    pub fn get_shifted_preference(&self) -> f64 {
+        self.shifted_preference
+    }
+
+    pub fn get_original_preference(&self) -> f64 {
+        self.preference
+    }
+
+    pub fn distance_to_proxy(&self, proxy: &Self) -> f64 {
+        (self.preference - proxy.get_current_preference()).abs()
     }
 
     pub fn swap_preference(&mut self) {

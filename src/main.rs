@@ -337,7 +337,7 @@ fn run_for_agents<'a>(
 
 fn select_delegates<'a>(
     proxies: &[&'a Agent],
-    delegators: &[&'a Agent],
+    delegators: &[&'a Agent]
 ) -> HashMap<&'a Agent, Vec<&'a Agent>> {
     let mut delegation_map =
         HashMap::<&Agent, Vec<&Agent>>::from_iter(proxies.iter().map(|&p| (p, vec![])));
@@ -346,7 +346,7 @@ fn select_delegates<'a>(
     for delegator in delegators.iter() {
         let (chosen, _) = proxies
             .iter()
-            .map(|&p| (p, delegator.distance_to(p)))
+            .map(|&p| (p, delegator.distance_to_proxy(p)))
             .min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap())
             .unwrap();
         delegation_map.get_mut(chosen).unwrap().push(delegator);
@@ -361,7 +361,7 @@ fn vote_no_delegations(
     let delegations = agents
         .iter()
         .map(|p| WeightedVote {
-            vote: p.get_preference(),
+            vote: p.get_current_preference(),
             weight: 1f64,
         })
         .collect_vec();
@@ -375,7 +375,7 @@ fn vote_candidate_no_delegations(
     let delegations = agents
         .iter()
         .map(|p| WeightedVote {
-            vote: p.get_preference().round(),
+            vote: p.get_current_preference().round(),
             weight: 1f64,
         })
         .collect_vec();

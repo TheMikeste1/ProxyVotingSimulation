@@ -5,7 +5,7 @@ pub struct ExpertCoordinationMechanism;
 
 impl CoordinationMechanism for ExpertCoordinationMechanism {
     fn coordinate(&self, expert: &Agent, _delegations: &[&Agent]) -> f64 {
-        expert.get_preference()
+        expert.get_current_preference()
     }
 }
 

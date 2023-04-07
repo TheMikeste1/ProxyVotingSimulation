@@ -5,8 +5,15 @@ pub struct MeanCoordinationMechanism;
 
 impl CoordinationMechanism for MeanCoordinationMechanism {
     fn coordinate(&self, delegatee: &Agent, delegations: &[&Agent]) -> f64 {
-        (delegatee.get_preference()
-            + delegations.iter().map(|d| d.get_preference()).sum::<f64>())
+        let delegatee_preference = delegatee.get_current_preference();
+
+        (delegatee_preference
+            + delegations
+                .iter()
+                .map(
+                    |d| d.get_original_preference(), // Delegators can't participate, so they use their original preference
+                )
+                .sum::<f64>())
             / (
                 delegations.len() + 1
                 // +1 for the delegatee

@@ -6,10 +6,14 @@ pub struct MedianCoordinationMechanism;
 
 impl CoordinationMechanism for MedianCoordinationMechanism {
     fn coordinate(&self, delegatee: &Agent, delegations: &[&Agent]) -> f64 {
+        let delegatee_preference = delegatee.get_current_preference();
+
         let preferences = delegations
             .iter()
-            .map(|d| d.get_preference())
-            .merge([delegatee.get_preference()])
+            .map(
+                |d| d.get_original_preference(), // Delegators can't participate, so they use their original preference
+            )
+            .merge([delegatee_preference])
             .sorted_by(|a, b| a.partial_cmp(b).unwrap())
             .collect::<Vec<f64>>();
         let len = preferences.len();
