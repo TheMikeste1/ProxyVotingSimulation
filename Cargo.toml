@@ -11,10 +11,11 @@ opt-level = 3
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
-arrow = { version = "32.0.0", features = ["ipc"] }
+arrow = { version = "33.0.0", features = ["ipc"] }
 chrono="0.4.23"
 crossbeam="0.8.2"
 indicatif="0.17.3"
 itertools= "0.10.5"
 rand = "0.8.5"
 rand_distr = "0.4.3"
+time = "0.3.20"
