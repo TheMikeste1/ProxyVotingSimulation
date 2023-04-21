@@ -87,6 +87,8 @@ fn main() {
         &voting_mechanisms,
         &distributions,
         &mut rng,
+        proxy_weight,
+        constituent_weight
     );
     save_to_file(
         &format!("{}_shift-{}_agents-{}_weight_p{}_c_{}", seed, shift, num_agents, proxy_weight, constituent_weight),
