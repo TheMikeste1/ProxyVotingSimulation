@@ -4,7 +4,7 @@ use crate::Agent;
 pub struct ExpertCoordinationMechanism;
 
 impl CoordinationMechanism for ExpertCoordinationMechanism {
-    fn coordinate(&self, expert: &Agent, _delegations: &[&Agent]) -> f64 {
+    fn coordinate(&self, expert: &Agent, _delegations: &[&Agent], _proxy_weight: f64, _constituent_weight: f64) -> f64 {
         expert.get_current_preference()
     }
 }

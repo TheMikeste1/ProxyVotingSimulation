@@ -77,6 +77,8 @@ fn main() {
     let num_agents = 24;
     let rows_per_combo = 1024;
     let shift = 0.2;
+    let proxy_weight = 1f64;
+    let constituent_weight = 1f64;
     let rows = generate_rows(
         num_agents,
         shift,
@@ -87,7 +89,7 @@ fn main() {
         &mut rng,
     );
     save_to_file(
-        &format!("{}_shift-{}_agents-{}", seed, shift, num_agents),
+        &format!("{}_shift-{}_agents-{}_weight_p{}_c_{}", seed, shift, num_agents, proxy_weight, constituent_weight),
         rows,
     );
 }
@@ -100,6 +102,8 @@ fn generate_rows(
     voting_mechanisms: &HashMap<&str, Box<dyn vm::VotingMechanism>>,
     distributions: &HashMap<&str, Distribution>,
     rng: &mut (impl rand::Rng + ?Sized),
+    proxy_weight: f64,
+    constituent_weight: f64,
 ) -> Vec<DataRow> {
     let ids = (0..rows_per_combo).collect_vec();
     let generations = distributions
@@ -142,6 +146,8 @@ fn generate_rows(
             coordination_mechanisms,
             dist_name.clone(),
             false,
+            proxy_weight,
+            constituent_weight
         );
 
         // Shift
@@ -158,6 +164,8 @@ fn generate_rows(
             coordination_mechanisms,
             dist_name,
             true,
+            proxy_weight,
+            constituent_weight
         );
     }
     rows
@@ -174,6 +182,8 @@ fn run_for_agents<'a>(
     coordination_mechanisms: &'a HashMap<&str, Box<dyn cm::CoordinationMechanism>>,
     dist_name: String,
     shifted: bool,
+    proxy_weight: f64,
+    constituent_weight: f64,
 ) {
     for num_proxies in 1..num_agents {
         let proxies = agents.iter().take(num_proxies).collect_vec();
@@ -263,8 +273,8 @@ fn run_for_agents<'a>(
                 let delegations = delegation_map
                     .iter()
                     .map(|(p, d)| {
-                        let vote = cm.coordinate(p, d.as_slice());
-                        let weight = (d.len() + 1) as f64;
+                        let vote = cm.coordinate(p, d.as_slice(), proxy_weight, constituent_weight);
+                        let weight = proxy_weight + constituent_weight * d.len() as f64;
                         WeightedVote { vote, weight }
                     })
                     .collect_vec();
