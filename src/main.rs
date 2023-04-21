@@ -21,7 +21,7 @@ pub use prelude::*;
 use indicatif::ProgressBar;
 use itertools::Itertools;
 use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::{SeedableRng};
 use std::collections::HashMap;
 
 use crate::utils::save_to_file;
@@ -72,7 +72,7 @@ fn main() {
         ),
     ]);
 
-    let seed = rand::thread_rng().gen();
+    let seed = 5372052; //rand::thread_rng().gen();
     let mut rng = StdRng::seed_from_u64(seed);
     let num_agents = 24;
     let rows_per_combo = 1024;
